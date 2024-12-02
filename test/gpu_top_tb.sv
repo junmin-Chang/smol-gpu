@@ -4,7 +4,7 @@ module gpu_top_tb;
     reg clk;
     wire test_out;
 
-    gpu_top uut (
+    gpu uut (
         .clk(clk),
         .test_out(test_out)
     );

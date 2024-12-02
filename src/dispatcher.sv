@@ -4,9 +4,7 @@
 `include "common.sv"
 
 module dispatcher #(
-    parameter NUM_CORES = 2,                 // Number of cores to include in this GPU
-    parameter WARPS_PER_CORE = 4,            // Number of warps to in each core
-    parameter THREADS_PER_WARP = 32          // Number of threads per warp (max 32)
+    parameter int NUM_CORES = 2,                 // Number of cores to include in this GPU
 ) (
     input wire clk,
     input wire reset,

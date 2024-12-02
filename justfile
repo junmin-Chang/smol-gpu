@@ -1,6 +1,7 @@
 source_files := `find ~+/src -type f -name "*.sv" | xargs echo`
 output_dir := "build"
 output_exe := "gpu"
+common_dir := `echo $(pwd)/src/common`
 num_cores := `nproc`
 cocotb_makefiles := `cocotb-config --makefiles`
 
@@ -8,7 +9,7 @@ default: run
 
 compile:
     mkdir -p {{output_dir}}
-    verilator --binary -j {{num_cores}} -CFLAGS "-std=c++20" -Mdir {{output_dir}} {{source_files}} -o {{output_exe}}
+    verilator --binary -j {{num_cores}} -I{{common_dir}} -CFLAGS "-std=c++20" -Mdir {{output_dir}} {{source_files}} -o {{output_exe}} --top-module {{output_exe}}
 
 run: compile
     {{output_dir}}/{{output_exe}}
