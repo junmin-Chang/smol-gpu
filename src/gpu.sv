@@ -109,7 +109,21 @@ mem_controller #(
         .mem_write_ready(data_mem_write_ready)
     );
 
+
+
 // Program Memory Controller
+
+// Disconnected write wires
+
+logic [NUM_FETCHERS-1:0] d_consumer_write_valid;
+instruction_memory_address_t d_consumer_write_address [NUM_FETCHERS];
+instruction_t d_consumer_write_data [NUM_FETCHERS];
+logic [NUM_FETCHERS-1:0] d_consumer_write_ready;
+
+logic [INSTRUCTION_MEM_NUM_CHANNELS-1:0] d_mem_write_valid;
+logic [`INSTRUCTION_MEMORY_ADDRESS_WIDTH-1:0] d_mem_write_address [INSTRUCTION_MEM_NUM_CHANNELS];
+logic [`INSTRUCTION_WIDTH-1:0] d_mem_write_data [INSTRUCTION_MEM_NUM_CHANNELS];
+
 mem_controller #(
     .DATA_WIDTH(`INSTRUCTION_WIDTH),
     .ADDRESS_WIDTH(`INSTRUCTION_MEMORY_ADDRESS_WIDTH),
@@ -125,19 +139,19 @@ mem_controller #(
     .consumer_read_ready(fetcher_read_ready),
     .consumer_read_data(fetcher_read_data),
 
-    .consumer_write_valid(0),
-    .consumer_write_address(0),
-    .consumer_write_data(0),
-    .consumer_write_ready(0),
+    .consumer_write_valid(d_consumer_write_valid),
+    .consumer_write_address(d_consumer_write_address),
+    .consumer_write_data(d_consumer_write_data),
+    .consumer_write_ready(d_consumer_write_ready),
 
-    .mem_read_valid(program_mem_read_valid),
-    .mem_read_address(program_mem_read_address),
-    .mem_read_ready(program_mem_read_ready),
-    .mem_read_data(program_mem_read_data),
+    .mem_read_valid(instruction_mem_read_valid),
+    .mem_read_address(instruction_mem_read_address),
+    .mem_read_ready(instruction_mem_read_ready),
+    .mem_read_data(instruction_mem_read_data),
 
-    .mem_write_valid(0),
-    .mem_write_address(0),
-    .mem_write_data(0),
+    .mem_write_valid(d_mem_write_valid),
+    .mem_write_address(d_mem_write_address),
+    .mem_write_data(d_mem_write_data),
     .mem_write_ready(0)
 );
 

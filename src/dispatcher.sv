@@ -33,7 +33,7 @@ logic start_execution; // EDA: Unimportant hack used because of EDA tooling
 always @(posedge clk) begin
     if (reset) begin
         done <= 0;
-        blocks_dispatched <= 0;
+        blocks_dispatched = 0;
         blocks_done <= 0;
         start_execution <= 0;
 
@@ -65,7 +65,7 @@ always @(posedge clk) begin
                     core_start[i] <= 1;
                     core_block_id[i] <= blocks_dispatched;
 
-                    blocks_dispatched <= blocks_dispatched + 1;
+                    blocks_dispatched = blocks_dispatched + 1;
                 end
             end
         end

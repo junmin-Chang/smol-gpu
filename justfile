@@ -14,14 +14,14 @@ compile:
 run: compile
     {{output_dir}}/{{output_exe}}
 
-test:
+test name:
     export SIM="verilator" ; \
     export TOPLEVEL_LANG="verilog" ; \
-    export MODULE="test.test_gpu" ; \
-    export TOPLEVEL="gpu" ; \
+    export MODULE="test.test_{{name}}" ; \
+    export TOPLEVEL="{{name}}" ; \
     export MAKEFILE="{{cocotb_makefiles}}/Makefile.sim" ; \
     export VERILOG_SOURCES="{{source_files}}" ; \
-    export EXTRA_ARGS="-j {{num_cores}} -CFLAGS -std=c++20" ; \
+    export EXTRA_ARGS="-j {{num_cores}} -I{{common_dir}} -CFLAGS -std=c++20" ; \
     export SIM_BUILD="{{output_dir}}" ; \
     make -f "$MAKEFILE"
 

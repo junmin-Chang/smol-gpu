@@ -31,7 +31,7 @@ module mem_controller #(
     output reg [DATA_WIDTH-1:0] mem_write_data [NUM_CHANNELS],
     input reg [NUM_CHANNELS-1:0] mem_write_ready
 );
-    localparam int IDLE = 3'b000,
+    localparam IDLE = 3'b000,
         READ_WAITING = 3'b010,
         WRITE_WAITING = 3'b011,
         READ_RELAYING = 3'b100,
@@ -44,19 +44,24 @@ module mem_controller #(
 
     always @(posedge clk) begin
         if (reset) begin
-            mem_read_valid <= 0;
-            mem_read_address <= 0;
 
-            mem_write_valid <= 0;
-            mem_write_address <= 0;
-            mem_write_data <= 0;
+            for (int i = 0; i < NUM_CONSUMERS; i++) begin
+                consumer_read_ready[i] <= 0;
+                consumer_write_ready[i] <= 0;
+                consumer_read_data[i] <= 0;
+            end
 
-            consumer_read_ready <= 0;
-            consumer_read_data <= 0;
-            consumer_write_ready <= 0;
+            for (int i = 0; i < NUM_CHANNELS; i++) begin
+                mem_read_valid[i] <= 0;
 
-            current_consumer <= 0;
-            controller_state <= 0;
+                mem_write_valid[i] <= 0;
+
+                current_consumer[i] <= 0;
+                controller_state[i] <= 0;
+                mem_read_address[i] <= 0;
+                mem_write_address[i] <= 0;
+                mem_write_data[i] <= 0;
+            end
 
             channel_serving_consumer = 0;
         end else begin
@@ -68,7 +73,7 @@ module mem_controller #(
                         for (int j = 0; j < NUM_CONSUMERS; j = j + 1) begin
                             if (consumer_read_valid[j] && !channel_serving_consumer[j]) begin
                                 channel_serving_consumer[j] = 1;
-                                current_consumer[i] <= j;
+                                current_consumer[i] <= j[$clog2(NUM_CONSUMERS)-1:0];
 
                                 mem_read_valid[i] <= 1;
                                 mem_read_address[i] <= consumer_read_address[j];
@@ -76,9 +81,9 @@ module mem_controller #(
 
                                 // Once we find a pending request, pick it up with this channel and stop looking for requests
                                 break;
-                            end else if (WRITE_ENABLE && consumer_write_valid[j] && !channel_serving_consumer[j]) begin
+                            end else if ((WRITE_ENABLE == 1) && consumer_write_valid[j] && !channel_serving_consumer[j]) begin
                                 channel_serving_consumer[j] = 1;
-                                current_consumer[i] <= j;
+                                current_consumer[i] <= j[$clog2(NUM_CONSUMERS)-1:0];
 
                                 mem_write_valid[i] <= 1;
                                 mem_write_address[i] <= consumer_write_address[j];
