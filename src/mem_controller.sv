@@ -122,6 +122,11 @@ module mem_controller #(
                             controller_state[i] <= IDLE;
                         end
                     end
+                    default: begin
+                        // Should never reach this state
+                        $error("Invalid state %d for channel %d", controller_state[i], i);
+                        controller_state[i] <= IDLE;
+                    end
                 endcase
             end
         end
