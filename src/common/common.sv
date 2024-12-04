@@ -84,4 +84,11 @@ typedef enum logic [2:0] {
     UPDATE
 } warp_state_t;
 
+// fetcher state enum
+typedef enum logic [2:0] {
+    IDLE,
+    FETCHING,
+    DONE
+} fetcher_state_t;
+
 `endif // COMMON_SV

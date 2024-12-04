@@ -31,7 +31,38 @@ module compute_core#(
     input logic [THREADS_PER_WARP-1:0] data_mem_write_ready
 );
 
+// Warp specific variables
+warp_state_t warp_state [WARPS_PER_CORE];
+fetcher_state_t fetcher_state [WARPS_PER_CORE];
+instruction_memory_address_t pc [WARPS_PER_CORE];
+instruction_t fetched_instruction [WARPS_PER_CORE];
+
 // warp scheduler
 // core memory controller
+
+// generate warp circuitry
+generate
+for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
+fetcher fetcher_inst(
+    .clk(clk),
+    .reset(reset),
+
+    .warp_state(warp_state[i]),
+    .pc(pc[i]),
+
+    // Instruction Memory
+    .instruction_mem_read_ready(instruction_mem_read_ready[i]),
+    .instruction_mem_read_data(instruction_mem_read_data[i]),
+    .instruction_mem_read_valid(instruction_mem_read_valid[i]),
+    .instruction_mem_read_address(instruction_mem_read_address[i]),
+
+    // Fetcher output
+    .fetcher_state(fetcher_state[i]),
+    .instruction(fetched_instruction[i])
+);
+end
+
+endgenerate
+
 
 endmodule
