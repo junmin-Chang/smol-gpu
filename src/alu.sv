@@ -8,15 +8,15 @@ module alu (
     input wire reset,
     input wire enable,
 
-    input imm12_t imm12,
-
-    input data_t rs1,
-    input data_t rs2,
-
-    input alu_instruction_t instruction,
+    input alu_input_t alu_input,
 
     output data_t alu_out
 );
+
+data_t rs1 = alu_input.rs1;
+data_t rs2 = alu_input.rs2;
+imm12_t imm12 = alu_input.imm12;
+alu_instruction_t instruction = alu_input.instruction;
 
 always @(posedge clk) begin
     if (reset) begin
@@ -24,19 +24,19 @@ always @(posedge clk) begin
     end else if (enable) begin
         case (instruction)
             ADDI: begin
-                alu_out <= rs1 + imm12;
+                alu_out <= rs1 + sign_extend(imm12);
             end
             SLTI: begin
                 alu_out <= (rs1 < imm12) ? 1 : 0;
             end
             XORI: begin
-                alu_out <= rs1 ^ imm12;
+                alu_out <= rs1 ^ sign_extend(imm12);
             end
             ORI: begin
-                alu_out <= rs1 | imm12;
+                alu_out <= rs1 | sign_extend(imm12);
             end
             ANDI: begin
-                alu_out <= rs1 & imm12;
+                alu_out <= rs1 & sign_extend(imm12);
             end
             SLLI: begin
                 alu_out <= rs1 << imm12;
