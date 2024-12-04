@@ -54,7 +54,7 @@ data_t lsu_read_data [NUM_LSUS];
 data_t lsu_write_data [NUM_LSUS];
 
 // Fetcher <> Program Memory Controller Channels
-localparam NUM_FETCHERS = NUM_CORES;
+localparam NUM_FETCHERS = NUM_CORES * WARPS_PER_CORE;
 typedef logic [NUM_FETCHERS-1:0] fetcher_size_t;
 fetcher_size_t fetcher_read_valid;
 instruction_memory_address_t fetcher_read_address [NUM_FETCHERS];
@@ -111,7 +111,7 @@ mem_controller #(
 
 
 
-// Program Memory Controller
+// Instruction Memory Controller
 
 // Disconnected write wires
 
@@ -155,9 +155,74 @@ mem_controller #(
     .mem_write_ready(0)
 );
 
-
 initial begin
     $display("Hello, World!");
 end
+
+// Compute Cores
+generate
+    for (genvar i = 0; i < NUM_CORES; i = i + 1) begin : g_cores
+        // EDA: We create separate signals here to pass to cores because of a requirement
+        // by the OpenLane EDA flow (uses Verilog 2005) that prevents slicing the top-level signals
+        logic [THREADS_PER_WARP-1:0] core_lsu_read_valid;
+        data_memory_address_t core_lsu_read_address [THREADS_PER_WARP];
+        logic [THREADS_PER_WARP-1:0] core_lsu_read_ready;
+        data_t core_lsu_read_data [THREADS_PER_WARP];
+        logic [THREADS_PER_WARP-1:0] core_lsu_write_valid;
+        data_memory_address_t core_lsu_write_address [THREADS_PER_WARP];
+        data_t core_lsu_write_data [THREADS_PER_WARP];
+        logic [THREADS_PER_WARP-1:0] core_lsu_write_ready;
+
+        // Pass through signals between LSUs and data memory controller
+        genvar j;
+        for (j = 0; j < THREADS_PER_WARP; j = j + 1) begin : g_lsu_connect
+            localparam lsu_index = i * THREADS_PER_WARP + j;
+            always @(posedge clk) begin
+                lsu_read_valid[lsu_index] <= core_lsu_read_valid[j];
+                lsu_read_address[lsu_index] <= core_lsu_read_address[j];
+
+                lsu_write_valid[lsu_index] <= core_lsu_write_valid[j];
+                lsu_write_address[lsu_index] <= core_lsu_write_address[j];
+                lsu_write_data[lsu_index] <= core_lsu_write_data[j];
+
+                core_lsu_read_ready[j] <= lsu_read_ready[lsu_index];
+                core_lsu_read_data[j] <= lsu_read_data[lsu_index];
+                core_lsu_write_ready[j] <= lsu_write_ready[lsu_index];
+            end
+        end
+
+        localparam fetcher_index = i * WARPS_PER_CORE;
+
+        // Compute Core
+        compute_core #(
+            .WARPS_PER_CORE(WARPS_PER_CORE),
+            .THREADS_PER_WARP(THREADS_PER_WARP)
+        ) core_instance (
+            .clk(clk),
+            .reset(core_reset[i]),
+
+            .start(core_start[i]),
+            .done(core_done[i]),
+
+            .block_id(core_block_id[i]),
+            .kernel_config(kernel_config),
+
+            .instruction_mem_read_valid(fetcher_read_valid[fetcher_index +: WARPS_PER_CORE]),
+            .instruction_mem_read_address(fetcher_read_address[fetcher_index +: WARPS_PER_CORE]),
+            .instruction_mem_read_ready(fetcher_read_ready[fetcher_index +: WARPS_PER_CORE]),
+            .instruction_mem_read_data(fetcher_read_data[fetcher_index +: WARPS_PER_CORE]),
+
+            .data_mem_read_valid(core_lsu_read_valid),
+            .data_mem_read_address(core_lsu_read_address),
+            .data_mem_read_ready(core_lsu_read_ready),
+            .data_mem_read_data(core_lsu_read_data),
+            .data_mem_write_valid(core_lsu_write_valid),
+            .data_mem_write_address(core_lsu_write_address),
+            .data_mem_write_data(core_lsu_write_data),
+            .data_mem_write_ready(core_lsu_write_ready)
+        );
+    end
+endgenerate
+
 
 endmodule

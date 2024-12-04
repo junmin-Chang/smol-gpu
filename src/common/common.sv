@@ -74,4 +74,14 @@ typedef enum logic [4:0] {
     BGE
 } alu_instruction_t;
 
+// warp state enum
+typedef enum logic [2:0] {
+    FETCH,
+    DECODE,
+    REQUEST,
+    WAIT,
+    EXECUTE,
+    UPDATE
+} warp_state_t;
+
 `endif // COMMON_SV
