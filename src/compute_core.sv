@@ -31,11 +31,21 @@ module compute_core#(
     input logic [THREADS_PER_WARP-1:0] data_mem_write_ready
 );
 
+typedef logic [THREADS_PER_WARP-1:0] warp_mask_t;
+
 // Warp specific variables
+logic [$clog2(WARPS_PER_CORE)-1:0] current_warp;
+
 warp_state_t warp_state [WARPS_PER_CORE];
 fetcher_state_t fetcher_state [WARPS_PER_CORE];
+
 instruction_memory_address_t pc [WARPS_PER_CORE];
+instruction_memory_address_t next_pc [WARPS_PER_CORE];
 instruction_t fetched_instruction [WARPS_PER_CORE];
+
+warp_mask_t warp_execution_mask [WARPS_PER_CORE];
+warp_mask_t current_warp_execution_mask;
+assign current_warp_execution_mask = warp_execution_mask[current_warp];
 
 // Alu specific variables
 alu_input_t alu_input [THREADS_PER_WARP];
@@ -65,23 +75,43 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
         .instruction(fetched_instruction[i])
     );
 end
-
 endgenerate
 
-// This block generates per thread units
+
+// This block generates per thread warp resources
+generate
+for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp_p_thread
+    for (genvar j = 0; j < THREADS_PER_WARP; j = j + 1) begin : g_warp_p_thread_inner
+        // reg_file reg_inst(
+        //     .clk(clk),
+        //     .reset(reset),
+        //     .enable(current_warp_mask[j]),
+        //
+        //     .thread_id(i * WARPS_PER_CORE + j),
+        //     .block_id(block_id),
+        //     .block_size(kernel_config.num_warps_per_block * THREADS_PER_WARP),
+        //
+        //     .decoded_reg_input_mux(decoded_reg_input_mux[j]),
+        //
+        // );
+    end
+end
+endgenerate
+
+
+// This block generates shared core resources
 generate
 for (genvar i = 0; i < THREADS_PER_WARP; i = i + 1) begin : g_thread
     alu alu_inst(
         .clk(clk),
         .reset(reset),
-        .enable(1'b1),
+        .enable(current_warp_execution_mask[i]),
 
         .alu_input(alu_input[i]),
 
         .alu_out(alu_out[i])
     );
 end
-
 endgenerate
 
 
