@@ -36,6 +36,12 @@ module gpu #(
     input wire [DATA_MEM_NUM_CHANNELS-1:0] data_mem_write_ready
 );
 
+kernel_config_t kernel_config_reg;
+// save kernel config on execution start to avoid losing data when the kernel is running
+always @(posedge clk, posedge execution_start) begin
+    kernel_config_reg <= kernel_config;
+end
+
 logic [NUM_CORES-1:0] core_done;
 logic [NUM_CORES-1:0] core_start;
 logic [NUM_CORES-1:0] core_reset;
@@ -68,7 +74,7 @@ dispatcher #(
     .reset(reset),
     .start(execution_start),
 
-    .kernel_config_reg(kernel_config),
+    .kernel_config(kernel_config_reg),
 
     .core_done(core_done),
     .core_start(core_start),
@@ -205,7 +211,7 @@ generate
             .done(core_done[i]),
 
             .block_id(core_block_id[i]),
-            .kernel_config(kernel_config),
+            .kernel_config(kernel_config_reg),
 
             .instruction_mem_read_valid(fetcher_read_valid[fetcher_index +: WARPS_PER_CORE]),
             .instruction_mem_read_address(fetcher_read_address[fetcher_index +: WARPS_PER_CORE]),

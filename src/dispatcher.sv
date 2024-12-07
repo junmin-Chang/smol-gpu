@@ -11,7 +11,7 @@ module dispatcher #(
     input wire start,
 
     // Kernel Metadata
-    input kernel_config_t kernel_config_reg,
+    input kernel_config_t kernel_config,
 
     // Core States
     input reg [NUM_CORES-1:0] core_done,
@@ -23,7 +23,7 @@ module dispatcher #(
     output reg done
 );
 
-num_blocks_t total_blocks = kernel_config_reg.num_blocks;
+num_blocks_t total_blocks = kernel_config.num_blocks;
 
 num_blocks_t blocks_done;
 num_blocks_t blocks_dispatched; // How many blocks have been sent to cores?

@@ -1,6 +1,8 @@
 `default_nettype none
 `timescale 1ns/1ns
 
+`include "common.sv"
+
 module compute_core#(
     parameter int WARPS_PER_CORE = 4,            // Number of warps to in each core
     parameter int THREADS_PER_WARP = 32          // Number of threads per warp (max 32)
@@ -31,7 +33,7 @@ module compute_core#(
     input logic [THREADS_PER_WARP-1:0] data_mem_write_ready
 );
 
-typedef logic [THREADS_PER_WARP-1:0] warp_mask_t;
+core_state_t core_state;
 
 // Warp specific variables
 logic [$clog2(WARPS_PER_CORE)-1:0] current_warp;

@@ -80,17 +80,17 @@ typedef struct packed {
     alu_instruction_t instruction;
 } alu_input_t;
 
-// warp state enum
+// core state enum
 typedef enum logic [2:0] {
-    WARP_IDLE,
-    WARP_FETCH,
-    WARP_DECODE,
-    WARP_REQUEST,
-    WARP_WAIT,
-    WARP_EXECUTE,
-    WARP_UPDATE,
-    WARP_DONE
-} warp_state_t;
+    CORE_IDLE,
+    CORE_CHOOSE,
+    CORE_DECODE,
+    CORE_REQUEST,
+    CORE_WAIT,
+    CORE_EXECUTE,
+    CORE_UPDATE,
+    CORE_DONE
+} core_state_t;
 
 // fetcher state enum
 typedef enum logic [2:0] {
