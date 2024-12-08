@@ -8,15 +8,13 @@ module alu (
     input wire reset,
     input wire enable,
 
-    input alu_input_t alu_input,
+    input imm12_t imm12,
+    input data_t rs1,
+    input data_t rs2,
+    input alu_instruction_t instruction,
 
     output data_t alu_out
 );
-
-data_t rs1 = alu_input.rs1;
-data_t rs2 = alu_input.rs2;
-imm12_t imm12 = alu_input.imm12;
-alu_instruction_t instruction = alu_input.instruction;
 
 always @(posedge clk) begin
     if (reset) begin

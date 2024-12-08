@@ -45,7 +45,7 @@ end
 logic [NUM_CORES-1:0] core_done;
 logic [NUM_CORES-1:0] core_start;
 logic [NUM_CORES-1:0] core_reset;
-logic [7:0] core_block_id [NUM_CORES];
+data_t core_block_id [NUM_CORES];
 
 // LSU <> Data Memory Controller Channels
 localparam int NUM_LSUS = NUM_CORES * THREADS_PER_WARP;

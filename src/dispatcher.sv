@@ -17,16 +17,16 @@ module dispatcher #(
     input reg [NUM_CORES-1:0] core_done,
     output reg [NUM_CORES-1:0] core_start,
     output reg [NUM_CORES-1:0] core_reset,
-    output reg [7:0] core_block_id [NUM_CORES],
+    output data_t core_block_id [NUM_CORES],
 
     // Kernel Execution
     output reg done
 );
 
-num_blocks_t total_blocks = kernel_config.num_blocks;
+data_t total_blocks = kernel_config.num_blocks;
 
-num_blocks_t blocks_done;
-num_blocks_t blocks_dispatched; // How many blocks have been sent to cores?
+data_t blocks_done;
+data_t blocks_dispatched; // How many blocks have been sent to cores?
 
 logic start_execution; // EDA: Unimportant hack used because of EDA tooling
 

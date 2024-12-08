@@ -14,14 +14,11 @@ typedef logic [`INSTRUCTION_WIDTH-1:0] instruction_t;
 typedef logic [`DATA_MEMORY_ADDRESS_WIDTH-1:0] data_memory_address_t;
 typedef logic [`INSTRUCTION_MEMORY_ADDRESS_WIDTH-1:0] instruction_memory_address_t;
 
-typedef logic [7:0] num_blocks_t;
-typedef logic [7:0] num_warps_per_block_t;
-
 typedef struct packed {
     instruction_memory_address_t base_instructions_address;
     data_memory_address_t base_data_address; // This is where kernel function arguments are stored
-    num_blocks_t num_blocks;
-    num_warps_per_block_t num_warps_per_block;
+    data_t num_blocks;
+    data_t num_warps_per_block;
 } kernel_config_t;
 
 // RISC-V Definitions
@@ -29,14 +26,32 @@ typedef struct packed {
 `define FUNCT3_WIDTH 3
 `define FUNCT7_WIDTH 7
 
+// Vector Instruction Opcodes
 `define OPCODE_R 7'b0110011         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
 `define OPCODE_I 7'b0010011         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
 `define OPCODE_S 7'b0100011         // Used by store instructions (SB, SH, SW)
 `define OPCODE_B 7'b1100011         // Used by branch instructions (BEQ, BNE, BLT, BGE)
 `define OPCODE_U 7'b0110111         // Used by LUI
-`define OPCODE_J 7'b1101111         // Used by JAL
+// `define OPCODE_J 7'b1101111      // Used by JAL but it is not a vector instruction, jumps are scalar
 `define OPCODE_I_LOAD 7'b0000011    // Used by load instructions (LB, LH, LW)
 `define OPCODE_AUIPC 7'b0010111     // Used by AUIPC
+
+// Scalar Instruction Opcodes
+`define OPCODE_SCALAR_R 7`b1110011  // Used by all scalar R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA, OR, AND)
+`define OPCODE_SCALAR_I 7`b1110011  // Used by all scalar I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
+`define OPCODE_SCALAR_S 7`b1110011  // Used by all scalar S-type instructions (SB, SH, SW)
+`define OPCODE_SCALAR_B 7`b1110011  // Used by all scalar B-type instructions (BEQ, BNE, BLT, BGE)
+`define OPCODE_SCALAR_U 7`b1110011  // Used by all scalar U-type instructions (LUI)
+`define OPCODE_SCALAR_J 7`b1110011  // Used by all scalar J-type instructions (JAL)
+`define OPCODE_SCALAR_I_LOAD 7`b1110011 // Used by all scalar I-type instructions (LB, LH, LW)
+`define OPCODE_SCALAR_AUIPC 7`b1110011  // Used by all scalar AUIPC instructions
+
+// Vector-Scalar Instruction Opcodes (SX_SLTI and SX_SLT)
+// SX_SLTI sets one bit of a scalar register based on thread's comparison result
+// SX_SLT rd, rs1, rs2 <=> rd[id] = rs1 < rs2 ? 1 : 0
+// SX_SLTI rd, rs1, imm <=> rd[id] = rs1 < imm ? 1 : 0
+`define OPCODE_VECTOR_SCALAR_R 7`b1110011  // Used by all vector-scalar R-type instructions (SX_SLT)
+`define OPCODE_VECTOR_SCALAR_I 7`b1110011  // Used by all vector-scalar I-type instructions (SX_SLTI)
 
 typedef logic [`OPCODE_WIDTH-1:0] opcode_t;
 typedef logic [`FUNCT3_WIDTH-1:0] funct3_t;
@@ -72,13 +87,6 @@ typedef enum logic [4:0] {
     BLT,
     BGE
 } alu_instruction_t;
-
-typedef struct packed {
-    imm12_t imm12;
-    data_t rs1;
-    data_t rs2;
-    alu_instruction_t instruction;
-} alu_input_t;
 
 // warp state enum
 typedef enum logic [2:0] {
