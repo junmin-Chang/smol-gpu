@@ -50,7 +50,7 @@ module lsu (
                 case (lsu_state)
                     LSU_IDLE: begin
                         // Only read when warp_state = REQUEST
-                        if (warp_state == 3'b011) begin 
+                        if (warp_state == WARP_REQUEST) begin 
                             lsu_state <= LSU_REQUESTING;
                         end
                     end
@@ -68,7 +68,7 @@ module lsu (
                     end
                     LSU_DONE: begin 
                         // Reset when warp_state = UPDATE
-                        if (warp_state == 3'b110) begin 
+                        if (warp_state == WARP_UPDATE) begin 
                             lsu_state <= LSU_IDLE;
                         end
                     end
@@ -80,7 +80,7 @@ module lsu (
                 case (lsu_state)
                     LSU_IDLE: begin
                         // Only read when warp_state = REQUEST
-                        if (warp_state == 3'b011) begin 
+                        if (warp_state == WARP_REQUEST) begin 
                             lsu_state <= LSU_REQUESTING;
                         end
                     end
@@ -98,7 +98,7 @@ module lsu (
                     end
                     LSU_DONE: begin 
                         // Reset when warp_state = UPDATE
-                        if (warp_state == 3'b110) begin 
+                        if (warp_state == WARP_UPDATE) begin 
                             lsu_state <= LSU_IDLE;
                         end
                     end

@@ -126,4 +126,15 @@ function automatic data_t sign_extend(imm12_t imm12);
     return signed_imm12;
 endfunction
 
+// sign extend function for 13-bit immediate values
+function automatic data_t sign_extend_13(logic[12:0] imm13);
+    data_t signed_imm13;
+    if (imm13[12]) begin
+        signed_imm13 = {{19{1'b1}}, imm13};
+    end else begin
+        signed_imm13 = {{19{1'b0}}, imm13};
+    end
+    return signed_imm13;
+endfunction
+
 `endif // COMMON_SV

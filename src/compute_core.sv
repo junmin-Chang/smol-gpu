@@ -41,13 +41,11 @@ int current_warp;
 warp_state_t warp_state [WARPS_PER_CORE];
 fetcher_state_t fetcher_state [WARPS_PER_CORE];
 
-warp_state_t chosen_warp_state = warp_state[current_warp];
+warp_state_t current_warp_state;
+assign current_warp_state = warp_state[current_warp];
 
 instruction_memory_address_t pc [WARPS_PER_CORE];
 instruction_memory_address_t next_pc [WARPS_PER_CORE];
-data_t rs1_array[THREADS_PER_WARP][WARPS_PER_CORE];
-data_t rs2_array[THREADS_PER_WARP][WARPS_PER_CORE];
-data_t rt_array[THREADS_PER_WARP][WARPS_PER_CORE];
 
 data_t rs1 [THREADS_PER_WARP];
 data_t rs2 [THREADS_PER_WARP];
@@ -71,10 +69,129 @@ data_t lsu_out [THREADS_PER_WARP];
 logic decoded_reg_write_enable [WARPS_PER_CORE];
 logic [1:0] decoded_reg_input_mux [WARPS_PER_CORE];
 data_t decoded_immediate [WARPS_PER_CORE];
+logic decoded_branch [WARPS_PER_CORE];
 logic [4:0] decoded_rd_address [WARPS_PER_CORE];
 logic [4:0] decoded_rs1_address [WARPS_PER_CORE];
 logic [4:0] decoded_rs2_address [WARPS_PER_CORE];
 logic [4:0] decoded_alu_instruction [WARPS_PER_CORE];
+
+logic decoded_finish [WARPS_PER_CORE];
+
+always @(posedge clk) begin
+    if (reset) begin
+        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+            warp_state[i] <= WARP_IDLE;
+            fetcher_state[i] <= FETCHER_IDLE;
+            pc[i] <= 0;
+            next_pc[i] <= 0;
+            warp_execution_mask[i] <= {32{1'b1}};
+            current_warp <= 0;
+        end
+    end else begin
+        // If we start, set all warps to fetch state
+        if (start) begin
+            current_warp <= 0;
+            for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+                warp_state[i] <= WARP_FETCH;
+                fetcher_state[i] <= FETCHER_IDLE;
+                pc[i] <= kernel_config.base_instructions_address;
+                next_pc[i] <= kernel_config.base_instructions_address;
+            end
+        end
+
+        // In parallel, check if fetchers are done, and if so, move to decode
+        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+            if (warp_state[i] == WARP_FETCH && fetcher_state[i] == FETCHER_DONE) begin
+                warp_state[i] <= WARP_DECODE;
+            end
+        end
+
+        // If all warps are done, we are done
+        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+            if (warp_state[i] != WARP_DONE) begin
+                done <= 0;
+                break;
+            end
+            done <= 1;
+        end
+
+        // Choose a warp to execute
+        // We don't choose warps that are in one of the following states:
+        // - WARP_IDLE - that means that the warp is not active
+        // - WARP_DONE - that means that the warp has finished execution
+        // - WARP_FETCH - that means that the warp is fetching instructions
+        // For now we do not change state unless we are in WARP_UPDATE
+        begin
+            if (current_warp_state == WARP_UPDATE || current_warp_state == WARP_DONE) begin
+                current_warp <= (current_warp + 1) % WARPS_PER_CORE;
+                /*int next_warp = (current_warp + 1) % WARPS_PER_CORE;
+                int found_warp = -1;
+                for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+                    int warp_index = (next_warp + i) % WARPS_PER_CORE;
+                    if ((warp_state[warp_index] != WARP_IDLE) && (warp_state[warp_index] != WARP_DONE)) begin
+                        found_warp = warp_index;
+                        break;
+                    end
+                end
+                if (found_warp != -1) begin
+                    current_warp <= found_warp;
+                end else begin
+                    // No active warp ready; remain with current warp
+                    current_warp <= current_warp;
+                end*/
+            end
+        end
+
+        case (current_warp_state)
+            WARP_IDLE: begin
+            end
+            WARP_FETCH: begin
+                // not possible to choose a warp that is fetching cause
+                // fetching is done in parallel
+                warp_state[current_warp] <= WARP_DECODE;
+            end
+            WARP_DECODE: begin
+                // decoding takes one cycle
+                warp_state[current_warp] <= WARP_REQUEST;
+            end
+            WARP_REQUEST: begin
+                // takes one cycle cause we are just changing the LSU state
+                warp_state[current_warp] <= WARP_WAIT;
+            end
+            WARP_WAIT: begin
+                reg any_lsu_waiting = 1'b0;
+                for (int i = 0; i < THREADS_PER_WARP; i++) begin
+                    // Make sure no lsu_state = REQUESTING or WAITING
+                    if (lsu_state[i] == 2'b01 || lsu_state[i] == 2'b10) begin
+                        any_lsu_waiting = 1'b1;
+                        break;
+                    end
+                end
+
+                // If no LSU is waiting for a response, move onto the next stage
+                if (!any_lsu_waiting) begin
+                    warp_state[current_warp] <= WARP_EXECUTE;
+                end
+            end
+            WARP_EXECUTE: begin
+                warp_state[current_warp] <= WARP_UPDATE;
+                next_pc[current_warp] <= pc[current_warp] + 1;
+            end
+            WARP_UPDATE: begin
+                if (decoded_finish[current_warp]) begin
+                    warp_state[current_warp] <= WARP_DONE;
+                end else begin
+                    pc[current_warp] <= next_pc[current_warp];
+                    warp_state[current_warp] <= WARP_FETCH;
+                end
+            end
+            WARP_DONE: begin
+                // we chillin
+            end
+        endcase
+    end
+
+end
 
 // This block generates warp control circuitry
 generate
@@ -95,6 +212,23 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
         // Fetcher output
         .fetcher_state(fetcher_state[i]),
         .instruction(fetched_instruction[i])
+    );
+
+    decoder decoder_inst(
+        .instruction(fetched_instruction[i]),
+
+        .decoded_reg_write_enable(decoded_reg_write_enable[i]),
+        .decoded_mem_write_enable(decoded_mem_write_enable[i]),
+        .decoded_mem_read_enable(decoded_mem_read_enable[i]),
+        .decoded_branch(decoded_branch[i]),
+        .decoded_reg_input_mux(decoded_reg_input_mux[i]),
+        .decoded_immediate(decoded_immediate[i]),
+        .decoded_rd_address(decoded_rd_address[i]),
+        .decoded_rs1_address(decoded_rs1_address[i]),
+        .decoded_rs2_address(decoded_rs2_address[i]),
+        .decoded_alu_instruction(decoded_alu_instruction[i]),
+
+        .decoded_finish(decoded_finish[i])
     );
 
     reg_file #(
