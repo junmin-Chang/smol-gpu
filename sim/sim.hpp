@@ -78,6 +78,10 @@ constexpr IData ANDI            = 0b111;            // ANDI
 constexpr IData ORI             = 0b110;            // ORI
 constexpr IData XORI            = 0b100;            // XORI
 
+constexpr IData LW              = 0b010;            // LW
+constexpr IData LH              = 0b001;            // LH
+constexpr IData LB              = 0b000;            // LB
+
 constexpr auto halt() -> IData {
     return OPCODE_HALT;
 }
@@ -100,6 +104,9 @@ constexpr auto ori(IData rd, IData rs1, IData imm) -> Instruction {
 }
 constexpr auto xori(IData rd, IData rs1, IData imm) -> Instruction {
     return create_itype_instruction(OPCODE_I, XORI, rd, rs1, imm);
+}
+constexpr auto lw(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_I_LOAD, LW, rd, rs1, imm);
 }
 
 // S-type instruction creation
@@ -233,6 +240,11 @@ struct DataMemory {
         for (IData addr = start_addr; addr <= end_addr && addr < mem_cells; ++addr) {
             std::println("Memory[{}]: {}", addr, memory[addr]);
         }
+    }
+
+    void push_data(IData data) {
+        static auto stack_ptr = 0u;
+        memory[stack_ptr++] = data;
     }
 };
 
