@@ -13,13 +13,13 @@ module lsu (
     // State
     input warp_state_t warp_state,
 
-    // Memory Control Sgiansl
+    // Memory Control Signals
     input reg decoded_mem_read_enable,
     input reg decoded_mem_write_enable,
 
     // Registers
-    input data_t rs,
-    input data_t rt,
+    input data_t rs1,
+    input data_t rs2,
 
     // Data Memory
     output logic mem_read_valid,
@@ -56,7 +56,7 @@ module lsu (
                     end
                     LSU_REQUESTING: begin 
                         mem_read_valid <= 1;
-                        mem_read_address <= rs;
+                        mem_read_address <= rs1;
                         lsu_state <= LSU_WAITING;
                     end
                     LSU_WAITING: begin
@@ -86,8 +86,8 @@ module lsu (
                     end
                     LSU_REQUESTING: begin 
                         mem_write_valid <= 1;
-                        mem_write_address <= rs;
-                        mem_write_data <= rt;
+                        mem_write_address <= rs1;
+                        mem_write_data <= rs2;
                         lsu_state <= LSU_WAITING;
                     end
                     LSU_WAITING: begin

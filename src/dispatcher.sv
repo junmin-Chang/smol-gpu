@@ -4,7 +4,7 @@
 `include "common.sv"
 
 module dispatcher #(
-    parameter int NUM_CORES = 2                 // Number of cores to include in this GPU
+    parameter int NUM_CORES                 // Number of cores to include in this GPU
 ) (
     input wire clk,
     input wire reset,
@@ -45,6 +45,7 @@ always @(posedge clk) begin
     end else if (start) begin
         // EDA: Indirect way to get @(posedge start) without driving from 2 different clocks
         if (!start_execution) begin
+            $display("Dispatcher: Start execution of %0d block(s)", total_blocks);
             start_execution <= 1;
             for (int i = 0; i < NUM_CORES; i++) begin
                 core_reset[i] <= 1;
@@ -53,6 +54,7 @@ always @(posedge clk) begin
 
         // If the last block has finished processing, mark this kernel as done executing
         if (blocks_done == total_blocks) begin
+            $display("Dispatcher: Done execution");
             done <= 1;
         end
 
@@ -62,6 +64,7 @@ always @(posedge clk) begin
 
                 // If this core was just reset, check if there are more blocks to be dispatched
                 if (blocks_dispatched < total_blocks) begin
+                    $display("Dispatcher: Dispatching block %d to core %d", blocks_dispatched, i);
                     core_start[i] <= 1;
                     core_block_id[i] <= blocks_dispatched;
 
@@ -73,6 +76,7 @@ always @(posedge clk) begin
         for (int i = 0; i < NUM_CORES; i++) begin
             if (core_start[i] && core_done[i]) begin
                 // If a core just finished executing it's current block, reset it
+                $display("Dispatcher: Core %d finished block %d", i, core_block_id[i]);
                 core_reset[i] <= 1;
                 core_start[i] <= 0;
                 blocks_done <= blocks_done + 1;

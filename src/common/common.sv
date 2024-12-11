@@ -26,6 +26,9 @@ typedef struct packed {
 `define FUNCT3_WIDTH 3
 `define FUNCT7_WIDTH 7
 
+// Finish Instruction Opcode
+`define OPCODE_FINISH 7'b1111111
+
 // Vector Instruction Opcodes
 `define OPCODE_R 7'b0110011         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
 `define OPCODE_I 7'b0010011         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
@@ -101,7 +104,7 @@ typedef enum logic [2:0] {
 } warp_state_t;
 
 // fetcher state enum
-typedef enum logic [2:0] {
+typedef enum logic [1:0] {
     FETCHER_IDLE,
     FETCHER_FETCHING,
     FETCHER_DONE

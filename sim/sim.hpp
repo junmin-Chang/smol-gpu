@@ -5,6 +5,109 @@
 
 namespace sim {
 
+struct Instruction {
+    IData bits{};
+
+    Instruction() = default;
+    Instruction(IData bits) : bits(bits) {}
+
+    operator IData() {
+        return bits;
+    }
+
+    constexpr auto set_opcode(IData opcode) -> Instruction& {
+        bits |= opcode;
+        return *this;
+    }
+
+    constexpr auto set_rd(IData rd) -> Instruction& {
+        bits |= rd << 7;
+        return *this;
+    }
+
+    constexpr auto set_funct3(IData funct3) -> Instruction& {
+        bits |= funct3 << 12;
+        return *this;
+    }
+
+    constexpr auto set_rs1(IData rs1) -> Instruction& {
+        bits |= rs1 << 15;
+        return *this;
+    }
+
+    constexpr auto set_imm(IData imm) -> Instruction& {
+        bits |= imm << 20;
+        return *this;
+    }
+
+    constexpr auto set_rs2(IData rs2) -> Instruction& {
+        bits |= rs2 << 20;
+        return *this;
+    }
+
+    constexpr auto set_funct7(IData funct7) -> Instruction& {
+        bits |= funct7 << 25;
+        return *this;
+    }
+
+    constexpr auto set_imm20(IData imm20) -> Instruction& {
+        bits |= imm20 << 12;
+        return *this;
+    }
+
+    constexpr auto set_imm12(IData imm12) -> Instruction& {
+        bits |= imm12 << 20;
+        return *this;
+    }
+};
+
+// opcodes
+constexpr IData OPCODE_R        = 0b0110011;         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
+constexpr IData OPCODE_I        = 0b0010011;         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
+constexpr IData OPCODE_S        = 0b0100011;         // Used by store instructions (SB, SH, SW)
+constexpr IData OPCODE_B        = 0b1100011;         // Used by branch instructions (BEQ, BNE, BLT, BGE)
+constexpr IData OPCODE_U        = 0b0110111;         // Used by LUI
+constexpr IData OPCODE_I_LOAD   = 0b0000011;    // Used by load instructions (LB, LH, LW)
+constexpr IData OPCODE_AUIPC    = 0b0010111;     // Used by AUIPC
+constexpr IData OPCODE_HALT     = 0b1111111;     // Used by HALT
+
+// funct3
+constexpr IData ADDI            = 0b000;            // ADDI
+constexpr IData SLTI            = 0b010;            // SLTI
+constexpr IData ANDI            = 0b111;            // ANDI
+constexpr IData ORI             = 0b110;            // ORI
+constexpr IData XORI            = 0b100;            // XORI
+
+constexpr auto halt() -> IData {
+    return OPCODE_HALT;
+}
+
+// I-type instruction creation
+constexpr auto create_itype_instruction(IData opcode, IData funct3, IData rd, IData rs1, IData imm) -> Instruction {
+    return Instruction().set_opcode(opcode).set_funct3(funct3).set_rd(rd).set_rs1(rs1).set_imm(imm);
+}
+constexpr auto addi(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_I, ADDI, rd, rs1, imm);
+}
+constexpr auto slti(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_I, SLTI, rd, rs1, imm);
+}
+constexpr auto andi(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_I, ANDI, rd, rs1, imm);
+}
+constexpr auto ori(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_I, ORI, rd, rs1, imm);
+}
+constexpr auto xori(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_I, XORI, rd, rs1, imm);
+}
+
+// S-type instruction creation
+constexpr auto sw(IData rs1, IData rs2, IData imm) -> Instruction {
+    return Instruction{}.set_opcode(OPCODE_S).set_funct3(0).set_rs1(rs1).set_rs2(rs2).set_imm12(imm);
+}
+
+
 constexpr void tick(Vgpu& top) {
     top.clk = 0;
     top.eval();
@@ -61,6 +164,16 @@ struct InstructionMemory {
             std::println(stderr, "Error: Attempt to load instruction at invalid address {}", addr);
         }
     }
+
+    void push_instruction(Instruction instruction) {
+        static auto stack_ptr = 0u;
+        memory[stack_ptr++] = (IData)instruction;
+    }
+
+    auto operator[](IData addr) -> IData& {
+        return memory[addr];
+    }
+
 };
 
 template <uint32_t mem_cells, uint32_t num_channels>
@@ -76,6 +189,10 @@ struct DataMemory {
     CData *data_mem_write_ready;                 // output
 
     std::array<IData, mem_cells> memory{};
+
+    auto operator[](IData addr) -> IData& {
+        return memory[addr];
+    }
 
     // Process read and write requests
     void process() {
@@ -157,4 +274,26 @@ constexpr void set_kernel_config(Vgpu& top, IData base_instructions_address, IDa
     kernel_config[0] = num_warps_per_block;
 }
 
-};
+template <uint32_t mem_cells, uint32_t num_channels>
+bool simulate(Vgpu& top, InstructionMemory<mem_cells, num_channels>& instruction_mem, DataMemory<mem_cells, num_channels>& data_mem, uint32_t max_num_cycles) {
+    top.execution_start = 1;
+
+    for (auto cycle = 0u; cycle < max_num_cycles; ++cycle) {
+        top.eval();
+
+        if (top.execution_done) {
+            return true;
+        }
+
+        instruction_mem.process();
+        data_mem.process();
+
+        top.eval();
+
+        tick(top);
+    }
+    return false;
+}
+
+} // namespace sim
+

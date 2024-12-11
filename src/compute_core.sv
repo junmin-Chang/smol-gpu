@@ -77,8 +77,16 @@ logic [4:0] decoded_alu_instruction [WARPS_PER_CORE];
 
 logic decoded_finish [WARPS_PER_CORE];
 
+logic start_execution; // EDA: Unimportant hack used because of EDA tooling
+
+data_t num_warps;
+assign num_warps = kernel_config.num_warps_per_block;
+
 always @(posedge clk) begin
     if (reset) begin
+        $display("Resetting core %0d", block_id);
+        start_execution <= 0;
+        done <= 0;
         for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
             warp_state[i] <= WARP_IDLE;
             fetcher_state[i] <= FETCHER_IDLE;
@@ -87,27 +95,30 @@ always @(posedge clk) begin
             warp_execution_mask[i] <= {32{1'b1}};
             current_warp <= 0;
         end
-    end else begin
-        // If we start, set all warps to fetch state
+    end else if (!start_execution) begin
         if (start) begin
+            $display("Starting execution of block %d", block_id);
+            // Set all warps to fetch state on start
+            start_execution <= 1;
             current_warp <= 0;
-            for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+            for (int i = 0; i < num_warps; i = i + 1) begin
                 warp_state[i] <= WARP_FETCH;
                 fetcher_state[i] <= FETCHER_IDLE;
                 pc[i] <= kernel_config.base_instructions_address;
                 next_pc[i] <= kernel_config.base_instructions_address;
             end
         end
-
+    end else begin
         // In parallel, check if fetchers are done, and if so, move to decode
         for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
             if (warp_state[i] == WARP_FETCH && fetcher_state[i] == FETCHER_DONE) begin
+                $display("Block: %0d: Warp %0d: Fetched instruction %h at address %h", block_id, i, fetched_instruction[i], pc[i]);
                 warp_state[i] <= WARP_DECODE;
             end
         end
 
         // If all warps are done, we are done
-        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+        for (int i = 0; i < num_warps; i = i + 1) begin
             if (warp_state[i] != WARP_DONE) begin
                 done <= 0;
                 break;
@@ -123,7 +134,8 @@ always @(posedge clk) begin
         // For now we do not change state unless we are in WARP_UPDATE
         begin
             if (current_warp_state == WARP_UPDATE || current_warp_state == WARP_DONE) begin
-                current_warp <= (current_warp + 1) % WARPS_PER_CORE;
+                $display("Block: %0d: Choosing next warp", block_id);
+                current_warp <= (current_warp + 1) % num_warps;
                 /*int next_warp = (current_warp + 1) % WARPS_PER_CORE;
                 int found_warp = -1;
                 for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
@@ -144,11 +156,11 @@ always @(posedge clk) begin
 
         case (current_warp_state)
             WARP_IDLE: begin
+                $display("Block: %0d: Warp %0d: Idle", block_id, current_warp);
             end
             WARP_FETCH: begin
                 // not possible to choose a warp that is fetching cause
                 // fetching is done in parallel
-                warp_state[current_warp] <= WARP_DECODE;
             end
             WARP_DECODE: begin
                 // decoding takes one cycle
@@ -174,11 +186,14 @@ always @(posedge clk) begin
                 end
             end
             WARP_EXECUTE: begin
+                $display("Block: %0d: Warp %0d: Executing instruction %h at address %h", block_id, current_warp, fetched_instruction[current_warp], pc[current_warp]);
+                $display("Instruction opcode: %b", fetched_instruction[current_warp][6:0]);
                 warp_state[current_warp] <= WARP_UPDATE;
                 next_pc[current_warp] <= pc[current_warp] + 1;
             end
             WARP_UPDATE: begin
                 if (decoded_finish[current_warp]) begin
+                    $display("Block: %0d: Warp %0d: Finished executing instruction %h", block_id, current_warp, fetched_instruction[current_warp]);
                     warp_state[current_warp] <= WARP_DONE;
                 end else begin
                     pc[current_warp] <= next_pc[current_warp];
@@ -190,7 +205,6 @@ always @(posedge clk) begin
             end
         endcase
     end
-
 end
 
 // This block generates warp control circuitry
@@ -299,8 +313,8 @@ generate
             .decoded_mem_read_enable(decoded_mem_read_enable[current_warp]),
             .decoded_mem_write_enable(decoded_mem_write_enable[current_warp]),
 
-            .rs(rs1[i]),
-            .rt(rs2[i]),
+            .rs1(rs1[i]),
+            .rs2(rs2[i]),
 
             // Data Memory connections
             .mem_read_valid(data_mem_read_valid[i]),

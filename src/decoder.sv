@@ -46,6 +46,9 @@ module decoder(
 
         // Start decoding
         unique case (opcode)
+            `OPCODE_FINISH: begin
+                decoded_finish = 1;
+            end
             `OPCODE_R: begin
                 // Vector R-type instructions
                 decoded_rd_address = rd;
@@ -165,6 +168,16 @@ module decoder(
                 decoded_mem_write_enable = 0;
                 decoded_branch = 0;
             end
+            `OPCODE_AUIPC: begin
+                // AUIPC instruction
+                decoded_rd_address = rd;
+                decoded_immediate = {imm_u, 12'b0}; // Immediate value shifted left 12 bits
+                decoded_reg_write_enable = 1;
+                decoded_reg_input_mux = 2'b00; // ALU result
+                decoded_mem_read_enable = 0;
+                decoded_mem_write_enable = 0;
+                decoded_branch = 0;
+            end
             7'b1110011: begin
                 // Scalar and vector-scalar instructions
                 // Implement decoding based on your specific encoding
@@ -176,7 +189,9 @@ module decoder(
                 // Placeholder error for unimplemented decoding
                 $error("Scalar and vector-scalar instruction decoding not implemented");
             end
-            default: $warning("Unrecognized opcode %b", opcode);
+            default: begin
+                // noop
+            end
         endcase
     end
 

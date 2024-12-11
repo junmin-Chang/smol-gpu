@@ -4,11 +4,11 @@
 `include "common.sv"
 
 module gpu #(
-    parameter int DATA_MEM_NUM_CHANNELS = 4,     // Number of concurrent channels for sending requests to data memory
-    parameter int INSTRUCTION_MEM_NUM_CHANNELS = 4,     // Number of concurrent channels for sending requests to data memory
-    parameter int NUM_CORES = 2,                 // Number of cores to include in this GPU
-    parameter int WARPS_PER_CORE = 4,            // Number of warps to in each core
-    parameter int THREADS_PER_WARP = 32          // Number of threads per warp (max 32)
+    parameter int DATA_MEM_NUM_CHANNELS /*verilator public*/ = 8,     // Number of concurrent channels for sending requests to data memory
+    parameter int INSTRUCTION_MEM_NUM_CHANNELS /*verilator public*/ = 8,     // Number of concurrent channels for sending requests to data memory
+    parameter int NUM_CORES /*verilator public*/ = 2,                 // Number of cores to include in this GPU
+    parameter int WARPS_PER_CORE /*verilator public*/ = 1,            // Number of warps to in each core
+    parameter int THREADS_PER_WARP /*verilator public*/ = 32          // Number of threads per warp (max 32)
 ) (
     input wire clk,
     input wire reset,
@@ -37,9 +37,21 @@ module gpu #(
 );
 
 kernel_config_t kernel_config_reg;
+logic start_execution; // EDA: Unimportant hack used because of EDA tooling
+
 // save kernel config on execution start to avoid losing data when the kernel is running
-always @(posedge clk, posedge execution_start) begin
-    kernel_config_reg <= kernel_config;
+always @(posedge clk) begin
+    if (reset) begin
+        start_execution <= 0;
+    end else if (execution_start && !start_execution) begin
+        start_execution <= 1;
+        kernel_config_reg <= kernel_config;
+        $display("GPU: Kernel configuration:");
+        $display("     - Base instruction address: %h", kernel_config.base_instructions_address);
+        $display("     - Base data address: %h", kernel_config.base_data_address);
+        $display("     - Num %d blocks", kernel_config.num_blocks);
+        $display("     - Number of warps per block: %d", kernel_config.num_warps_per_block);
+    end
 end
 
 logic [NUM_CORES-1:0] core_done;
@@ -72,7 +84,7 @@ dispatcher #(
     ) dispatcher_inst (
     .clk(clk),
     .reset(reset),
-    .start(execution_start),
+    .start(start_execution),
 
     .kernel_config(kernel_config_reg),
 
