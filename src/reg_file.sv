@@ -13,6 +13,7 @@ module reg_file #(
     input data_t warp_id,
     input data_t block_id,
     input data_t block_size,
+    input warp_state_t warp_state,
 
     // Decoded instruction fields
     input logic decoded_reg_write_enable,      // Write enable for the register file
@@ -60,36 +61,30 @@ always @(posedge clk) begin
                 registers[i][j] <= {DATA_WIDTH{1'b0}};
             end
         end
-    end else if (enable && decoded_reg_write_enable) begin
+    end else if (enable) begin
         for (int i = 0; i < THREADS_PER_WARP; i++) begin
             if (thread_enable[i]) begin
-                // Prevent writes to read-only registers
-                if (decoded_rd_address >= 4) begin
-                    case (decoded_reg_input_mux)
-                        2'b00: registers[i][decoded_rd_address] <= alu_out[i];          // ALU result
-                        2'b01: registers[i][decoded_rd_address] <= lsu_out[i];          // LSU result
-                        2'b10: registers[i][decoded_rd_address] <= decoded_immediate;   // Immediate value
-                        default: $error("Invalid decoded_reg_input_mux value");
-                    endcase
-                end else begin
-                    $error("Attempted to write to read-only register %d", decoded_rd_address);
+                if (warp_state == WARP_REQUEST) begin
+                    rs1[i] <= registers[i][decoded_rs1_address];
+                    rs2[i] <= registers[i][decoded_rs2_address];
+                end
+
+                if (warp_state == WARP_UPDATE) begin
+                    // Prevent writes to read-only registers
+                    if (decoded_reg_write_enable && decoded_rd_address >= 4) begin
+                        case (decoded_reg_input_mux)
+                            2'b00: begin
+                                registers[i][decoded_rd_address] <= alu_out[i];          // ALU result
+                                $display("Writing to register %0d: %0d", decoded_rd_address, alu_out[i]);
+                            end
+                            2'b01: registers[i][decoded_rd_address] <= lsu_out[i];          // LSU result
+                            2'b10: registers[i][decoded_rd_address] <= decoded_immediate;   // Immediate value
+                            default: $error("Invalid decoded_reg_input_mux value");
+                        endcase
+                    end
                 end
             end
         end
     end
 end
-
-// Read register values
-always_comb begin
-    for (int i = 0; i < THREADS_PER_WARP; i++) begin
-        if (thread_enable[i]) begin
-            rs1[i] = registers[i][decoded_rs1_address];
-            rs2[i] = registers[i][decoded_rs2_address];
-        end else begin
-            rs1[i] = {DATA_WIDTH{1'b0}};
-            rs2[i] = {DATA_WIDTH{1'b0}};
-        end
-    end
-end
-
 endmodule

@@ -7,7 +7,7 @@ module gpu #(
     parameter int DATA_MEM_NUM_CHANNELS /*verilator public*/ = 8,     // Number of concurrent channels for sending requests to data memory
     parameter int INSTRUCTION_MEM_NUM_CHANNELS /*verilator public*/ = 8,     // Number of concurrent channels for sending requests to data memory
     parameter int NUM_CORES /*verilator public*/ = 2,                 // Number of cores to include in this GPU
-    parameter int WARPS_PER_CORE /*verilator public*/ = 1,            // Number of warps to in each core
+    parameter int WARPS_PER_CORE /*verilator public*/ = 2,            // Number of warps to in each core
     parameter int THREADS_PER_WARP /*verilator public*/ = 32          // Number of threads per warp (max 32)
 ) (
     input wire clk,

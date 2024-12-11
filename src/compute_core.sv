@@ -229,6 +229,10 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
     );
 
     decoder decoder_inst(
+        .clk(clk),
+        .reset(reset),
+        .warp_state(warp_state[i]),
+
         .instruction(fetched_instruction[i]),
 
         .decoded_reg_write_enable(decoded_reg_write_enable[i]),
@@ -259,6 +263,7 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
             .warp_id(i),
             .block_id(block_id),
             .block_size(kernel_config.num_warps_per_block * THREADS_PER_WARP),
+            .warp_state(warp_state[i]),
 
             // Decoded instruction fields for this warp
             .decoded_reg_write_enable(decoded_reg_write_enable[i]),

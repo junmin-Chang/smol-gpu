@@ -85,6 +85,7 @@ module lsu (
                         end
                     end
                     LSU_REQUESTING: begin 
+                        $display("LSU: Writing %d to memory address %d", rs2, rs1);
                         mem_write_valid <= 1;
                         mem_write_address <= rs1;
                         mem_write_data <= rs2;
