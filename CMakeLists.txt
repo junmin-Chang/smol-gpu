@@ -57,6 +57,7 @@ endif()
 
 set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
 
+add_subdirectory(external)
 add_subdirectory(src)
 add_subdirectory(sim)
 
@@ -65,12 +66,12 @@ add_subdirectory(sim)
 #   add_subdirectory(testbenches)
 # endif()
 
-# option(ENABLE_TESTS "Enables tests" ON)
-# if(ENABLE_TESTS)
-#   include(CTest)
-#   enable_testing()
-#   add_subdirectory(tests)
-# endif()
+option(ENABLE_TESTS "Enables tests" ON)
+if(ENABLE_TESTS)
+  include(CTest)
+  enable_testing()
+  add_subdirectory(test)
+endif()
 
 # option(ENABLE_EXAMPLES "Enables examples" ON)
 # if(ENABLE_EXAMPLES)

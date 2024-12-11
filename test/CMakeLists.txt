@@ -1,0 +1,10 @@
+function(create_test test_name source_file)
+  add_executable(${test_name} ${source_file})
+  target_link_libraries(${test_name} doctest)
+  foreach(lib IN LISTS ARGN)
+    target_link_libraries(${test_name} ${lib})
+  endforeach()
+  add_test(NAME ${test_name} COMMAND ${test_name})
+endfunction()
+
+create_test(mov_test test_mov.cpp Sim GPU)
