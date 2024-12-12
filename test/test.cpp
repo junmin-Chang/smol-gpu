@@ -50,6 +50,34 @@ TEST_CASE("lw + sw") {
     }
 }
 
+TEST_CASE("add") {
+    auto top = Vgpu{};
+
+    auto data_mem = sim::make_data_memory<2048, 8>(&top);
+    auto instruction_mem = sim::make_instruction_memory<2048, 8>(&top);
+
+    data_mem.push_data(10);
+    data_mem.push_data(20);
+
+    instruction_mem.push_instruction(sim::lw(6, 0, 0));
+    instruction_mem.push_instruction(sim::lw(5, 0, 1));
+    instruction_mem.push_instruction(sim::add(7, 6, 5));
+    instruction_mem.push_instruction(sim::sw(1, 7, 0));
+    instruction_mem.push_instruction(sim::halt());
+
+
+    // Prepare kernel configuration
+    sim::set_kernel_config(top, 0, 0, 1, 1);
+
+    // Run simulation
+    auto done = sim::simulate(top, instruction_mem, data_mem, 2000);
+
+    REQUIRE(done);
+    for(auto i = 0; i < 32; i++) {
+        CHECK(data_mem[i] == 30);
+    }
+}
+
 TEST_CASE("mask") {
     constexpr auto mem_cells_count = 2048;
 
@@ -60,7 +88,9 @@ TEST_CASE("mask") {
 
     data_mem.push_data(IData{1} << 2);
 
-    auto mask_instruction = sim::lw(1, 0, 0).make_scalar();
+    auto mask_instruction = sim::lw(1, 0, 0);
+    mask_instruction.bits |= 1 << 6;
+
     instruction_mem.push_instruction(mask_instruction);
     instruction_mem.push_instruction(sim::addi(5, 1 ,0));
     instruction_mem.push_instruction(sim::sw(5, 1, 0));
@@ -68,7 +98,7 @@ TEST_CASE("mask") {
 
     sim::set_kernel_config(top, 0, 0, 1, 1);
 
-    auto done = sim::simulate(top, instruction_mem, data_mem, 100);
+    auto done = sim::simulate(top, instruction_mem, data_mem, 500);
 
     REQUIRE(done);
 
