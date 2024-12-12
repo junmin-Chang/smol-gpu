@@ -190,7 +190,6 @@ struct InstructionMemory {
     }
 
     void push_instruction(Instruction instruction) {
-        static auto stack_ptr = 0u;
         memory[stack_ptr++] = (IData)instruction;
     }
 
@@ -198,6 +197,7 @@ struct InstructionMemory {
         return memory[addr];
     }
 
+    uint32_t stack_ptr = 0u;
 };
 
 template <uint32_t mem_cells, uint32_t num_channels>
@@ -260,9 +260,10 @@ struct DataMemory {
     }
 
     void push_data(IData data) {
-        static auto stack_ptr = 0u;
         memory[stack_ptr++] = data;
     }
+
+    uint32_t stack_ptr = 0u;
 };
 
 template <uint32_t mem_cells, uint32_t num_channels>

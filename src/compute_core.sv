@@ -114,6 +114,7 @@ lsu warp_lsu_inst (
 
     .rs1(scalar_rs1),
     .rs2(scalar_rs2),
+    .imm(decoded_immediate[current_warp]),
 
     // Data Memory connections
     .mem_read_valid(data_mem_read_valid[THREADS_PER_WARP]),
@@ -156,7 +157,7 @@ always @(posedge clk) begin
         end
     end else begin
         // In parallel, check if fetchers are done, and if so, move to decode
-        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+        for (int i = 0; i < num_warps; i = i + 1) begin
             if (warp_state[i] == WARP_FETCH && fetcher_state[i] == FETCHER_DONE) begin
                 $display("Block: %0d: Warp %0d: Fetched instruction %h at address %h", block_id, i, fetched_instruction[i], pc[i]);
                 warp_state[i] <= WARP_DECODE;
@@ -391,6 +392,7 @@ generate
 
             .rs1(rs1[i]),
             .rs2(rs2[i]),
+            .imm(decoded_immediate[current_warp]),
 
             // Data Memory connections
             .mem_read_valid(data_mem_read_valid[i]),

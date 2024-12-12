@@ -13,21 +13,27 @@ auto main() -> int {
 
     data_mem.push_data(IData{1} << 2);
 
-    auto mask_instruction = sim::lw(1, 0, 0);
-    mask_instruction.bits |= (1 << 6);
+    auto mask_instruction = sim::lw(1, 0, 0).make_scalar();
     instruction_mem.push_instruction(mask_instruction);
     instruction_mem.push_instruction(sim::addi(5, 1 ,0));
     instruction_mem.push_instruction(sim::sw(5, 1, 0));
     instruction_mem.push_instruction(sim::halt());
 
+
+
     // Prepare kernel configuration
     sim::set_kernel_config(top, 0, 0, 1, 1);
 
     // Run simulation
-    auto done = sim::simulate(top, instruction_mem, data_mem, 100);
+    auto done = sim::simulate(top, instruction_mem, data_mem, 2000);
+
+    if(!done) {
+        std::println("Simulation failed!");
+        return 1;
+    }
 
     // Optionally, print data memory content
-    data_mem.print_memory(0, 10);
+    data_mem.print_memory(0, 100);
 
     return 0;
 }
