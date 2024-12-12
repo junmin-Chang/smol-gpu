@@ -7,4 +7,4 @@ function(create_test test_name source_file)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
-create_test(mov_test test_mov.cpp Sim GPU)
+create_test(test_instructions test.cpp Sim GPU)

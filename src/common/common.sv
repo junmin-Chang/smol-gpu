@@ -26,35 +26,26 @@ typedef struct packed {
 `define FUNCT3_WIDTH 3
 `define FUNCT7_WIDTH 7
 
-// Finish Instruction Opcode
-`define OPCODE_FINISH 7'b1111111
-
-// Vector Instruction Opcodes
-`define OPCODE_R 7'b0110011         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
-`define OPCODE_I 7'b0010011         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
-`define OPCODE_S 7'b0100011         // Used by store instructions (SB, SH, SW)
-`define OPCODE_B 7'b1100011         // Used by branch instructions (BEQ, BNE, BLT, BGE)
-`define OPCODE_U 7'b0110111         // Used by LUI
-// `define OPCODE_J 7'b1101111      // Used by JAL but it is not a vector instruction, jumps are scalar
-`define OPCODE_I_LOAD 7'b0000011    // Used by load instructions (LB, LH, LW)
-`define OPCODE_AUIPC 7'b0010111     // Used by AUIPC
-
-// Scalar Instruction Opcodes
-`define OPCODE_SCALAR_R 7`b1110011  // Used by all scalar R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA, OR, AND)
-`define OPCODE_SCALAR_I 7`b1110011  // Used by all scalar I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
-`define OPCODE_SCALAR_S 7`b1110011  // Used by all scalar S-type instructions (SB, SH, SW)
-`define OPCODE_SCALAR_B 7`b1110011  // Used by all scalar B-type instructions (BEQ, BNE, BLT, BGE)
-`define OPCODE_SCALAR_U 7`b1110011  // Used by all scalar U-type instructions (LUI)
-`define OPCODE_SCALAR_J 7`b1110011  // Used by all scalar J-type instructions (JAL)
-`define OPCODE_SCALAR_I_LOAD 7`b1110011 // Used by all scalar I-type instructions (LB, LH, LW)
-`define OPCODE_SCALAR_AUIPC 7`b1110011  // Used by all scalar AUIPC instructions
+// Halt Instruction Opcode
+`define OPCODE_HALT     7'b1111111
 
 // Vector-Scalar Instruction Opcodes (SX_SLTI and SX_SLT)
 // SX_SLTI sets one bit of a scalar register based on thread's comparison result
-// SX_SLT rd, rs1, rs2 <=> rd[id] = rs1 < rs2 ? 1 : 0
-// SX_SLTI rd, rs1, imm <=> rd[id] = rs1 < imm ? 1 : 0
-`define OPCODE_VECTOR_SCALAR_R 7`b1110011  // Used by all vector-scalar R-type instructions (SX_SLT)
-`define OPCODE_VECTOR_SCALAR_I 7`b1110011  // Used by all vector-scalar I-type instructions (SX_SLTI)
+`define OPCODE_SX_SLT   7'b1111110        // SX_SLT rd, rs1, rs2 <=> rd[id] = rs1 < rs2 ? 1 : 0
+`define OPCODE_SX_SLTI  7'b1111101        // SX_SLTI rd, rs1, imm <=> rd[id] = rs1 < imm ? 1 : 0
+
+// Instruction Opcodes
+// The entire opcode is 7 bits, the most significant bit decides whether the instruction is vector or scalar
+`define OPCODE_R        6'b110011         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
+`define OPCODE_I        6'b010011         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
+`define OPCODE_S        6'b100011         // Used by store instructions (SB, SH, SW)
+`define OPCODE_U        6'b110111         // Used by LUI
+`define OPCODE_LOAD     6'b000011         // Used by load instructions (LB, LH, LW)
+`define OPCODE_AUIPC    6'b010111         // Used by AUIPC
+
+// Those two can only be used by scalar instructions
+`define OPCODE_B        7'b1100011        // Used by branch instructions (BEQ, BNE, BLT, BGE)
+`define OPCODE_J        7'b1101111        // Used by JAL but it is not a vector instruction, jumps are scalar
 
 typedef logic [`OPCODE_WIDTH-1:0] opcode_t;
 typedef logic [`FUNCT3_WIDTH-1:0] funct3_t;
@@ -117,6 +108,13 @@ typedef enum logic [1:0] {
     LSU_WAITING,
     LSU_DONE
 } lsu_state_t;
+
+// reg input mux
+typedef enum logic [1:0] {
+    ALU_OUT,
+    LSU_OUT,
+    IMMEDIATE
+} reg_input_mux_t;
 
 // sign extend function
 function automatic data_t sign_extend(imm12_t imm12);

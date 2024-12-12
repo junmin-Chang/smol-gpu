@@ -60,7 +60,8 @@ logic [NUM_CORES-1:0] core_reset;
 data_t core_block_id [NUM_CORES];
 
 // LSU <> Data Memory Controller Channels
-localparam int NUM_LSUS = NUM_CORES * THREADS_PER_WARP;
+localparam int NUM_LSUS_PER_CORE = THREADS_PER_WARP + 1;
+localparam int NUM_LSUS = NUM_CORES * NUM_LSUS_PER_CORE;
 typedef logic [NUM_LSUS-1:0] lsu_size_t;
 lsu_size_t lsu_read_valid;
 lsu_size_t lsu_read_ready;
@@ -182,19 +183,19 @@ generate
     for (genvar i = 0; i < NUM_CORES; i = i + 1) begin : g_cores
         // EDA: We create separate signals here to pass to cores because of a requirement
         // by the OpenLane EDA flow (uses Verilog 2005) that prevents slicing the top-level signals
-        logic [THREADS_PER_WARP-1:0] core_lsu_read_valid;
-        data_memory_address_t core_lsu_read_address [THREADS_PER_WARP];
-        logic [THREADS_PER_WARP-1:0] core_lsu_read_ready;
-        data_t core_lsu_read_data [THREADS_PER_WARP];
-        logic [THREADS_PER_WARP-1:0] core_lsu_write_valid;
-        data_memory_address_t core_lsu_write_address [THREADS_PER_WARP];
-        data_t core_lsu_write_data [THREADS_PER_WARP];
-        logic [THREADS_PER_WARP-1:0] core_lsu_write_ready;
+        logic [NUM_LSUS_PER_CORE-1:0] core_lsu_read_valid;
+        data_memory_address_t core_lsu_read_address [NUM_LSUS_PER_CORE];
+        logic [NUM_LSUS_PER_CORE-1:0] core_lsu_read_ready;
+        data_t core_lsu_read_data [NUM_LSUS_PER_CORE];
+        logic [NUM_LSUS_PER_CORE-1:0] core_lsu_write_valid;
+        data_memory_address_t core_lsu_write_address [NUM_LSUS_PER_CORE];
+        data_t core_lsu_write_data [NUM_LSUS_PER_CORE];
+        logic [NUM_LSUS_PER_CORE-1:0] core_lsu_write_ready;
 
         // Pass through signals between LSUs and data memory controller
         genvar j;
-        for (j = 0; j < THREADS_PER_WARP; j = j + 1) begin : g_lsu_connect
-            localparam lsu_index = i * THREADS_PER_WARP + j;
+        for (j = 0; j < NUM_LSUS_PER_CORE; j = j + 1) begin : g_lsu_connect
+            localparam lsu_index = i * NUM_LSUS_PER_CORE + j;
             always @(posedge clk) begin
                 lsu_read_valid[lsu_index] <= core_lsu_read_valid[j];
                 lsu_read_address[lsu_index] <= core_lsu_read_address[j];

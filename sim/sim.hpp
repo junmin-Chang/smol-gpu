@@ -114,6 +114,14 @@ constexpr auto sw(IData rs1, IData rs2, IData imm) -> Instruction {
     return Instruction{}.set_opcode(OPCODE_S).set_funct3(0).set_rs1(rs1).set_rs2(rs2).set_imm12(imm);
 }
 
+// R-type instruction creation
+constexpr auto create_rtype_instruction(IData opcode, IData funct3, IData rd, IData rs1, IData rs2) -> Instruction {
+    return Instruction().set_opcode(opcode).set_funct3(funct3).set_rd(rd).set_rs1(rs1).set_rs2(rs2);
+}
+constexpr auto add(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 0, rd, rs1, rs2);
+}
+
 
 constexpr void tick(Vgpu& top) {
     top.clk = 0;

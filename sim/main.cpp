@@ -11,6 +11,11 @@ auto main() -> int {
     auto data_mem = sim::make_data_memory<mem_cells_count, num_channels>(&top);
     auto instruction_mem = sim::make_instruction_memory<mem_cells_count, num_channels>(&top);
 
+    data_mem.push_data(IData{1} << 2);
+
+    auto mask_instruction = sim::lw(1, 0, 0);
+    mask_instruction.bits |= (1 << 6);
+    instruction_mem.push_instruction(mask_instruction);
     instruction_mem.push_instruction(sim::addi(5, 1 ,0));
     instruction_mem.push_instruction(sim::sw(5, 1, 0));
     instruction_mem.push_instruction(sim::halt());

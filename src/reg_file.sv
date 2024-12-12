@@ -1,3 +1,6 @@
+`default_nettype none
+`timescale 1ns/1ns
+
 module reg_file #(
     parameter int THREADS_PER_WARP = 32,
     parameter int DATA_WIDTH = `DATA_WIDTH
@@ -16,12 +19,12 @@ module reg_file #(
     input warp_state_t warp_state,
 
     // Decoded instruction fields
-    input logic decoded_reg_write_enable,      // Write enable for the register file
-    input logic [1:0] decoded_reg_input_mux,   // Determines the source of data to write
-    input data_t decoded_immediate,            // Immediate value for constant writes
-    input logic [4:0] decoded_rd_address,      // Destination register index
-    input logic [4:0] decoded_rs1_address,     // Source register 1 index
-    input logic [4:0] decoded_rs2_address,     // Source register 2 index
+    input logic decoded_reg_write_enable,           // Write enable for the register file
+    input reg_input_mux_t decoded_reg_input_mux,    // Determines the source of data to write
+    input data_t decoded_immediate,                 // Immediate value for constant writes
+    input logic [4:0] decoded_rd_address,           // Destination register index
+    input logic [4:0] decoded_rs1_address,          // Source register 1 index
+    input logic [4:0] decoded_rs2_address,          // Source register 2 index
 
     // Inputs from ALU and LSU per thread
     input data_t alu_out      [THREADS_PER_WARP],
@@ -73,12 +76,12 @@ always @(posedge clk) begin
                     // Prevent writes to read-only registers
                     if (decoded_reg_write_enable && decoded_rd_address >= 4) begin
                         case (decoded_reg_input_mux)
-                            2'b00: begin
-                                registers[i][decoded_rd_address] <= alu_out[i];          // ALU result
-                                $display("Writing to register %0d: %0d", decoded_rd_address, alu_out[i]);
+                            ALU_OUT: begin
+                                registers[i][decoded_rd_address] <= alu_out[i];
+                                //$display("Writing to register %0d: %0d", decoded_rd_address, alu_out[i]);
                             end
-                            2'b01: registers[i][decoded_rd_address] <= lsu_out[i];          // LSU result
-                            2'b10: registers[i][decoded_rd_address] <= decoded_immediate;   // Immediate value
+                            LSU_OUT: registers[i][decoded_rd_address] <= lsu_out[i];
+                            IMMEDIATE: registers[i][decoded_rd_address] <= decoded_immediate;
                             default: $error("Invalid decoded_reg_input_mux value");
                         endcase
                     end
