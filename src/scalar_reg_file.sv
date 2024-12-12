@@ -25,6 +25,7 @@ module scalar_reg_file #(
     input data_t alu_out,
     input data_t lsu_out,
     input instruction_memory_address_t pc,
+    input data_t vector_to_scalar_data,
 
     output data_t rs1,
     output data_t rs2
@@ -60,6 +61,10 @@ always @(posedge clk) begin
                     LSU_OUT: registers[decoded_rd_address] <= lsu_out;
                     IMMEDIATE: registers[decoded_rd_address] <= decoded_immediate;
                     PC_PLUS_1: registers[decoded_rd_address] <= pc + 1;
+                    VECTOR_TO_SCALAR: begin
+                        $display("Scalar Reg File: Writing vector_to_scalar_data to register %d", decoded_rd_address);
+                        registers[decoded_rd_address] <= vector_to_scalar_data;
+                    end
                     default: $error("Invalid decoded_reg_input_mux value");
                 endcase
             end

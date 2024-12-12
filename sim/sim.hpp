@@ -96,9 +96,14 @@ constexpr IData OPCODE_I        = 0b0010011;         // Used by ALU I-type instr
 constexpr IData OPCODE_S        = 0b0100011;         // Used by store instructions (SB, SH, SW)
 constexpr IData OPCODE_B        = 0b1100011;         // Used by branch instructions (BEQ, BNE, BLT, BGE)
 constexpr IData OPCODE_U        = 0b0110111;         // Used by LUI
-constexpr IData OPCODE_I_LOAD   = 0b0000011;    // Used by load instructions (LB, LH, LW)
-constexpr IData OPCODE_AUIPC    = 0b0010111;     // Used by AUIPC
-constexpr IData OPCODE_HALT     = 0b1111111;     // Used by HALT
+constexpr IData OPCODE_I_LOAD   = 0b0000011;         // Used by load instructions (LB, LH, LW)
+constexpr IData OPCODE_AUIPC    = 0b0010111;         // Used by AUIPC
+
+constexpr IData OPCODE_J        = 0b1101111;         // Used by JAL
+constexpr IData OPCODE_JALR     = 0b1100111;         // Used by JALR
+constexpr IData OPCODE_HALT     = 0b1111111;         // Used by HALT
+constexpr IData OPCODE_SX_SLT   = 0b1111110;         // Used by SX_SLT
+constexpr IData OPCODE_SX_SLTI  = 0b1111101;         // Used by SX_SLTI
 
 // funct3
 constexpr IData ADDI            = 0b000;            // ADDI
@@ -110,6 +115,7 @@ constexpr IData XORI            = 0b100;            // XORI
 constexpr IData LW              = 0b010;            // LW
 constexpr IData LH              = 0b001;            // LH
 constexpr IData LB              = 0b000;            // LB
+
 
 constexpr auto halt() -> IData {
     return OPCODE_HALT;
@@ -150,12 +156,46 @@ constexpr auto create_rtype_instruction(IData opcode, IData funct3, IData rd, ID
 constexpr auto add(IData rd, IData rs1, IData rs2) -> Instruction {
     return create_rtype_instruction(OPCODE_R, 0, rd, rs1, rs2);
 }
+constexpr auto sub(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 0, rd, rs1, rs2).set_funct7(0b0100000);
+}
+constexpr auto sll(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 1, rd, rs1, rs2);
+}
+constexpr auto slt(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 2, rd, rs1, rs2);
+}
+constexpr auto xor_(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 4, rd, rs1, rs2);
+}
+constexpr auto srl(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 5, rd, rs1, rs2);
+}
+constexpr auto sra(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 5, rd, rs1, rs2).set_funct7(0b0100000);
+}
+constexpr auto or_(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 6, rd, rs1, rs2);
+}
+constexpr auto and_(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_R, 7, rd, rs1, rs2);
+}
 
-constexpr void tick(Vgpu& top) {
-    top.clk = 0;
-    top.eval();
-    top.clk = 1;
-    top.eval();
+// B-type instruction creation
+constexpr auto create_btype_instruction(IData opcode, IData funct3, IData rs1, IData rs2, IData imm) -> Instruction {
+    return Instruction().set_opcode(opcode).set_funct3(funct3).set_rs1(rs1).set_rs2(rs2).set_imm(imm);
+}
+constexpr auto beq(IData rs1, IData rs2, IData imm) -> Instruction {
+    return create_btype_instruction(OPCODE_B, 0, rs1, rs2, imm);
+}
+constexpr auto bne(IData rs1, IData rs2, IData imm) -> Instruction {
+    return create_btype_instruction(OPCODE_B, 1, rs1, rs2, imm);
+}
+constexpr auto blt(IData rs1, IData rs2, IData imm) -> Instruction {
+    return create_btype_instruction(OPCODE_B, 4, rs1, rs2, imm);
+}
+constexpr auto bge(IData rs1, IData rs2, IData imm) -> Instruction {
+    return create_btype_instruction(OPCODE_B, 5, rs1, rs2, imm);
 }
 
 // J-type instruction creation
@@ -164,6 +204,24 @@ constexpr auto create_jtype_instruction(IData opcode, IData rd, IData imm21) -> 
 }
 constexpr auto jal(IData rd, IData imm20) -> Instruction {
     return create_jtype_instruction(0b1101111, rd, imm20);
+}
+constexpr auto jalr(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_JALR, 0, rd, rs1, imm);
+}
+
+// SX-type instruction creation
+constexpr auto sx_slt(IData rd, IData rs1, IData rs2) -> Instruction {
+    return create_rtype_instruction(OPCODE_SX_SLT, SLTI, rd, rs1, rs2);
+}
+constexpr auto sx_slti(IData rd, IData rs1, IData imm) -> Instruction {
+    return create_itype_instruction(OPCODE_SX_SLTI, SLTI, rd, rs1, imm);
+}
+
+constexpr void tick(Vgpu& top) {
+    top.clk = 0;
+    top.eval();
+    top.clk = 1;
+    top.eval();
 }
 
 // CData is uint8_t, IData is uint32_t

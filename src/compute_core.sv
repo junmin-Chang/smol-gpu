@@ -61,7 +61,7 @@ data_t lsu_out [THREADS_PER_WARP];
 
 // Decoded instruction fields per warp
 logic decoded_reg_write_enable [WARPS_PER_CORE];
-logic [1:0] decoded_reg_input_mux [WARPS_PER_CORE];
+reg_input_mux_t decoded_reg_input_mux [WARPS_PER_CORE];
 data_t decoded_immediate [WARPS_PER_CORE];
 logic decoded_branch [WARPS_PER_CORE];
 logic decoded_scalar_instruction [WARPS_PER_CORE];
@@ -80,6 +80,8 @@ data_t scalar_rs2;
 data_t scalar_lsu_out;
 data_t scalar_alu_out;
 lsu_state_t scalar_lsu_state;
+
+data_t vector_to_scalar_data [WARPS_PER_CORE];
 
 instruction_memory_address_t pc [WARPS_PER_CORE];
 instruction_memory_address_t next_pc [WARPS_PER_CORE];
@@ -240,8 +242,6 @@ always @(posedge clk) begin
                 $display("Block: %0d: Warp %0d: Executing instruction %h at address %h", block_id, current_warp, fetched_instruction[current_warp], pc[current_warp]);
                 $display("Instruction opcode: %b", fetched_instruction[current_warp][6:0]);
                 if (decoded_scalar_instruction[current_warp]) begin
-                    $display("Scalar instruction detected.");
-
                     if (decoded_branch[current_warp]) begin
                         // Branch instruction
                         if (scalar_alu_out == 1) begin
@@ -252,11 +252,8 @@ always @(posedge clk) begin
                             next_pc[current_warp] <= pc[current_warp] + 1;
                         end
                     end else if (decoded_alu_instruction[current_warp] == JAL) begin
-                        $display("JAL instruction detected, jumping to %h", scalar_alu_out);
-                        // JAL instruction
                         next_pc[current_warp] <= scalar_alu_out;
                     end else if (decoded_alu_instruction[current_warp] == JALR) begin
-                        // JALR instruction
                         next_pc[current_warp] <= scalar_alu_out;
                     end else begin
                         // Other scalar instruction
@@ -268,6 +265,18 @@ always @(posedge clk) begin
                 end
                 $display("===================================");
                 warp_state[current_warp] <= WARP_UPDATE;
+
+                if (decoded_reg_input_mux[current_warp] == VECTOR_TO_SCALAR) begin
+                    data_t scalar_write_value;
+                    scalar_write_value = {`DATA_WIDTH{1'b0}};
+                    for (int i = 0; i < THREADS_PER_WARP; i++) begin
+                        scalar_write_value[i] = alu_out[i][0];
+                    end
+                    vector_to_scalar_data[current_warp] <= scalar_write_value;
+                end else begin
+                    vector_to_scalar_data[current_warp] <= {`DATA_WIDTH{1'b0}};
+                end
+
             end
             WARP_UPDATE: begin
                 if (decoded_halt[current_warp]) begin
@@ -339,7 +348,7 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
 
         .warp_state(warp_state[i]),
 
-        .decoded_reg_write_enable(decoded_reg_write_enable[i] & decoded_scalar_instruction[i]),
+        .decoded_reg_write_enable(decoded_reg_write_enable[i] & (decoded_scalar_instruction[i] | decoded_reg_input_mux[current_warp] == VECTOR_TO_SCALAR)),
         .decoded_reg_input_mux(decoded_reg_input_mux[i]),
         .decoded_immediate(decoded_immediate[i]),
         .decoded_rd_address(decoded_rd_address[i]),
@@ -349,6 +358,7 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
         .alu_out(scalar_alu_out),
         .lsu_out(scalar_lsu_out),
         .pc(pc[i]),
+        .vector_to_scalar_data(vector_to_scalar_data[i]),
 
         .rs1(scalar_rs1),
         .rs2(scalar_rs2)

@@ -15,18 +15,19 @@ auto main() -> int {
 
     auto mask_instruction = sim::lw(1, 0, 0).make_scalar();
     auto jal = sim::jal(8, 10);
-    instruction_mem.push_instruction(sim::jal(8, 10));
-    /*instruction_mem.push_instruction(sim::addi(5, 1 ,0));*/
-    /*instruction_mem.push_instruction(sim::sw(5, 1, 0));*/
+
+
+    /*instruction_mem.push_instruction(sim::jal(8, 10));*/
+    instruction_mem.push_instruction(sim::addi(5, 1 ,0));
+    instruction_mem.push_instruction(sim::sx_slti(1, 5, 5));
+    instruction_mem.push_instruction(sim::sw(5, 1, 0));
     instruction_mem.push_instruction(sim::halt());
-
-
 
     // Prepare kernel configuration
     sim::set_kernel_config(top, 0, 0, 1, 1);
 
     // Run simulation
-    auto done = sim::simulate(top, instruction_mem, data_mem, 30);
+    auto done = sim::simulate(top, instruction_mem, data_mem, 200);
 
     if(!done) {
         std::println("Simulation failed!");
@@ -34,7 +35,7 @@ auto main() -> int {
     }
 
     // Optionally, print data memory content
-    /*data_mem.print_memory(0, 100);*/
+    data_mem.print_memory(0, 10);
 
     return 0;
 }

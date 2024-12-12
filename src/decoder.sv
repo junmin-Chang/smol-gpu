@@ -72,10 +72,22 @@ module decoder(
             if (opcode == `OPCODE_HALT) begin
                 decoded_halt <= 1;
             end else if (opcode == `OPCODE_SX_SLT) begin
-                // not implemented yet
+                decoded_scalar_instruction <= 0; // This is a vector-scalar instruction
+                decoded_rd_address <= rd;
+                decoded_rs1_address <= rs1;
+                decoded_rs2_address <= rs2;
+                decoded_reg_write_enable <= 1;
+                decoded_reg_input_mux <= VECTOR_TO_SCALAR;
+                decoded_alu_instruction <= SLT;
             end else if (opcode == `OPCODE_SX_SLTI) begin
-                // not implemented yet
-            end else if (opcode == `OPCODE_B) begin
+                decoded_scalar_instruction <= 0; // This is a vector-scalar instruction
+                decoded_rd_address <= rd;
+                decoded_rs1_address <= rs1;
+                decoded_immediate <= sign_extend(imm_i);
+                decoded_reg_write_enable <= 1;
+                decoded_reg_input_mux <= VECTOR_TO_SCALAR;
+                decoded_alu_instruction <= SLTI;                // not implemented yet
+        end else if (opcode == `OPCODE_B) begin
                 // Branch instructions (e.g., BEQ, BNE)
                 decoded_rs1_address <= rs1;
                 decoded_rs2_address <= rs2;

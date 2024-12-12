@@ -111,3 +111,30 @@ TEST_CASE("mask") {
         }
     }
 }
+
+TEST_CASE("sx_slti") {
+    auto top = Vgpu{};
+
+    auto data_mem = sim::make_data_memory<2048, 8>(&top);
+    auto instruction_mem = sim::make_instruction_memory<2048, 8>(&top);
+
+    instruction_mem.push_instruction(sim::addi(5, 1 ,0));
+    instruction_mem.push_instruction(sim::sx_slti(1, 5, 5));
+    instruction_mem.push_instruction(sim::sw(5, 1, 0));
+    instruction_mem.push_instruction(sim::halt());
+
+    // Prepare kernel configuration
+    sim::set_kernel_config(top, 0, 0, 1, 1);
+
+    // Run simulation
+    auto done = sim::simulate(top, instruction_mem, data_mem, 2000);
+
+    REQUIRE(done);
+    for(auto i = 0; i < 32; i++) {
+        if(i < 5) {
+            CHECK(data_mem[i] == i);
+        } else {
+            CHECK(data_mem[i] == 0);
+        }
+    }
+}

@@ -66,6 +66,13 @@ always @(posedge clk) begin
         end
     end else if (enable) begin
         for (int i = 0; i < THREADS_PER_WARP; i++) begin
+            registers[i][ZERO_REG]     <= {DATA_WIDTH{1'b0}};
+            registers[i][THREAD_ID_REG]<= thread_ids[i];
+            registers[i][BLOCK_ID_REG] <= block_id;
+            registers[i][BLOCK_SIZE_REG]<= block_size;
+        end
+
+        for (int i = 0; i < THREADS_PER_WARP; i++) begin
             if (thread_enable[i]) begin
                 if (warp_state == WARP_REQUEST) begin
                     rs1[i] <= registers[i][decoded_rs1_address];
@@ -82,6 +89,9 @@ always @(posedge clk) begin
                             end
                             LSU_OUT: registers[i][decoded_rd_address] <= lsu_out[i];
                             IMMEDIATE: registers[i][decoded_rd_address] <= decoded_immediate;
+                            VECTOR_TO_SCALAR: begin
+                                // noop
+                            end
                             default: $error("Invalid decoded_reg_input_mux value");
                         endcase
                     end

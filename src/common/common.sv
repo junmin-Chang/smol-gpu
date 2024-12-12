@@ -115,11 +115,12 @@ typedef enum logic [1:0] {
 } lsu_state_t;
 
 // reg input mux
-typedef enum logic [1:0] {
+typedef enum logic [2:0] {
     ALU_OUT,
     LSU_OUT,
     IMMEDIATE,
-    PC_PLUS_1
+    PC_PLUS_1,
+    VECTOR_TO_SCALAR
 } reg_input_mux_t;
 
 // sign extend function
