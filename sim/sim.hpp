@@ -1,6 +1,7 @@
 #pragma once
 #include <print>
 #include <array>
+#include <bitset>
 #include "Vgpu.h"
 
 namespace sim {
@@ -52,6 +53,24 @@ struct Instruction {
 
     constexpr auto set_imm20(IData imm20) -> Instruction& {
         bits |= imm20 << 12;
+        return *this;
+    }
+
+    constexpr auto set_imm21(IData imm21) -> Instruction& {
+        auto imm_j = std::bitset<32>{};
+        auto imm = std::bitset<21>(imm21);
+
+        imm_j[31] = imm[20];
+        for(auto i = 21u; i <= 30u; i++) {
+            imm_j[i] = imm[i - 20];
+        }
+        imm_j[20] = imm[11];
+        for(auto i = 12u; i <= 19u; i++) {
+            imm_j[i] = imm[i];
+        }
+        imm[0] = 0;
+
+        bits |= imm_j.to_ulong();
         return *this;
     }
 
@@ -137,6 +156,14 @@ constexpr void tick(Vgpu& top) {
     top.eval();
     top.clk = 1;
     top.eval();
+}
+
+// J-type instruction creation
+constexpr auto create_jtype_instruction(IData opcode, IData rd, IData imm21) -> Instruction {
+    return Instruction().set_opcode(opcode).set_rd(rd).set_imm21(imm21);
+}
+constexpr auto jal(IData rd, IData imm20) -> Instruction {
+    return create_jtype_instruction(0b1101111, rd, imm20);
 }
 
 // CData is uint8_t, IData is uint32_t

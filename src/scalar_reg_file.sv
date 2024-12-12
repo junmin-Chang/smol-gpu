@@ -24,6 +24,7 @@ module scalar_reg_file #(
 
     input data_t alu_out,
     input data_t lsu_out,
+    input instruction_memory_address_t pc,
 
     output data_t rs1,
     output data_t rs2
@@ -55,14 +56,10 @@ always @(posedge clk) begin
             if (decoded_reg_write_enable && decoded_rd_address > 0) begin
                 $display("Scalar Reg File: Writing to register %d", decoded_rd_address);
                 case (decoded_reg_input_mux)
-                    ALU_OUT: begin
-                        registers[decoded_rd_address] <= alu_out;
-                    end
-                    LSU_OUT: begin
-                        $display("Scalar Reg File: Writing LSU output %d to register %d", lsu_out, decoded_rd_address);
-                        registers[decoded_rd_address] <= lsu_out;
-                    end
+                    ALU_OUT: registers[decoded_rd_address] <= alu_out;
+                    LSU_OUT: registers[decoded_rd_address] <= lsu_out;
                     IMMEDIATE: registers[decoded_rd_address] <= decoded_immediate;
+                    PC_PLUS_1: registers[decoded_rd_address] <= pc + 1;
                     default: $error("Invalid decoded_reg_input_mux value");
                 endcase
             end

@@ -94,9 +94,10 @@ alu warp_alu_inst(
     .reset(reset),
     .enable(decoded_scalar_instruction[current_warp]),
 
+    .pc(pc[current_warp]),
     .rs1(scalar_rs1),
     .rs2(scalar_rs2),
-    .imm12(decoded_immediate[current_warp][11:0]),
+    .imm(decoded_immediate[current_warp]),
     .instruction(decoded_alu_instruction[current_warp]),
 
     .alu_out(scalar_alu_out)
@@ -236,12 +237,37 @@ always @(posedge clk) begin
             WARP_EXECUTE: begin
                 $display("===================================");
                 $display("Mask: %32b", warp_execution_mask[current_warp]);
-                $display("Is scalar instruction: %0d", decoded_scalar_instruction[current_warp]);
                 $display("Block: %0d: Warp %0d: Executing instruction %h at address %h", block_id, current_warp, fetched_instruction[current_warp], pc[current_warp]);
                 $display("Instruction opcode: %b", fetched_instruction[current_warp][6:0]);
+                if (decoded_scalar_instruction[current_warp]) begin
+                    $display("Scalar instruction detected.");
+
+                    if (decoded_branch[current_warp]) begin
+                        // Branch instruction
+                        if (scalar_alu_out == 1) begin
+                            // Branch taken
+                            next_pc[current_warp] <= pc[current_warp] + decoded_immediate[current_warp];
+                        end else begin
+                            // Branch not taken
+                            next_pc[current_warp] <= pc[current_warp] + 1;
+                        end
+                    end else if (decoded_alu_instruction[current_warp] == JAL) begin
+                        $display("JAL instruction detected, jumping to %h", scalar_alu_out);
+                        // JAL instruction
+                        next_pc[current_warp] <= scalar_alu_out;
+                    end else if (decoded_alu_instruction[current_warp] == JALR) begin
+                        // JALR instruction
+                        next_pc[current_warp] <= scalar_alu_out;
+                    end else begin
+                        // Other scalar instruction
+                        next_pc[current_warp] <= pc[current_warp] + 1;
+                    end
+                end else begin
+                    // Vector instruction
+                    next_pc[current_warp] <= pc[current_warp] + 1;
+                end
                 $display("===================================");
                 warp_state[current_warp] <= WARP_UPDATE;
-                next_pc[current_warp] <= pc[current_warp] + 1;
             end
             WARP_UPDATE: begin
                 if (decoded_halt[current_warp]) begin
@@ -322,6 +348,7 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
 
         .alu_out(scalar_alu_out),
         .lsu_out(scalar_lsu_out),
+        .pc(pc[i]),
 
         .rs1(scalar_rs1),
         .rs2(scalar_rs2)
@@ -372,9 +399,10 @@ generate
             .reset(reset),
             .enable(t_enable),
 
+            .pc(pc[current_warp]),
             .rs1(rs1[i]),
             .rs2(rs2[i]),
-            .imm12(decoded_immediate[current_warp][11:0]),
+            .imm(decoded_immediate[current_warp]),
             .instruction(decoded_alu_instruction[current_warp]),
 
             .alu_out(alu_out[i])

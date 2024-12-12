@@ -43,9 +43,10 @@ typedef struct packed {
 `define OPCODE_LOAD     6'b000011         // Used by load instructions (LB, LH, LW)
 `define OPCODE_AUIPC    6'b010111         // Used by AUIPC
 
-// Those two can only be used by scalar instructions
+// Those instructions can only be used by scalar instructions
 `define OPCODE_B        7'b1100011        // Used by branch instructions (BEQ, BNE, BLT, BGE)
 `define OPCODE_J        7'b1101111        // Used by JAL but it is not a vector instruction, jumps are scalar
+`define OPCODE_JALR     7'b1100111        // Used by JALR but it is not a vector instruction, jumps are scalar
 
 typedef logic [`OPCODE_WIDTH-1:0] opcode_t;
 typedef logic [`FUNCT3_WIDTH-1:0] funct3_t;
@@ -79,7 +80,11 @@ typedef enum logic [4:0] {
     BEQ,
     BNE,
     BLT,
-    BGE
+    BGE,
+
+    // jump instructions
+    JAL,
+    JALR
 } alu_instruction_t;
 
 // warp state enum
@@ -113,7 +118,8 @@ typedef enum logic [1:0] {
 typedef enum logic [1:0] {
     ALU_OUT,
     LSU_OUT,
-    IMMEDIATE
+    IMMEDIATE,
+    PC_PLUS_1
 } reg_input_mux_t;
 
 // sign extend function
@@ -136,6 +142,17 @@ function automatic data_t sign_extend_13(logic[12:0] imm13);
         signed_imm13 = {{19{1'b0}}, imm13};
     end
     return signed_imm13;
+endfunction
+
+// sign extend function for 21-bit immediate values
+function automatic data_t sign_extend_21(logic[20:0] imm21);
+    data_t signed_imm21;
+    if (imm21[20]) begin
+        signed_imm21 = {{11{1'b1}}, imm21};
+    end else begin
+        signed_imm21 = {{11{1'b0}}, imm21};
+    end
+    return signed_imm21;
 endfunction
 
 `endif // COMMON_SV

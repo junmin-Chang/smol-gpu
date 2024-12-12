@@ -8,7 +8,8 @@ module alu (
     input wire reset,
     input wire enable,
 
-    input imm12_t imm12,
+    input instruction_memory_address_t pc,
+    input data_t imm,
     input data_t rs1,
     input data_t rs2,
     input alu_instruction_t instruction,
@@ -22,28 +23,28 @@ always @(posedge clk) begin
     end else if (enable) begin
         case (instruction)
             ADDI: begin
-                alu_out <= rs1 + sign_extend(imm12);
+                alu_out <= rs1 + imm;
             end
             SLTI: begin
-                alu_out <= (rs1 < imm12) ? 1 : 0;
+                alu_out <= (rs1 < imm) ? 1 : 0;
             end
             XORI: begin
-                alu_out <= rs1 ^ sign_extend(imm12);
+                alu_out <= rs1 ^ imm;
             end
             ORI: begin
-                alu_out <= rs1 | sign_extend(imm12);
+                alu_out <= rs1 | imm;
             end
             ANDI: begin
-                alu_out <= rs1 & sign_extend(imm12);
+                alu_out <= rs1 & imm;
             end
             SLLI: begin
-                alu_out <= rs1 << imm12;
+                alu_out <= rs1 << imm;
             end
             SRLI: begin
-                alu_out <= rs1 >> imm12;
+                alu_out <= rs1 >> imm;
             end
             SRAI: begin
-                alu_out <= rs1 >>> imm12;
+                alu_out <= rs1 >>> imm;
             end
             ADD: begin
                 alu_out <= rs1 + rs2;
@@ -83,6 +84,12 @@ always @(posedge clk) begin
             end
             BGE: begin
                 alu_out <= (rs1 >= rs2) ? 1 : 0;
+            end
+            JAL: begin
+                alu_out <= pc + imm;
+            end
+            JALR: begin
+                alu_out <= rs1 + imm;
             end
             default: begin
                 $error("Invalid ALU instruction %0d", instruction);

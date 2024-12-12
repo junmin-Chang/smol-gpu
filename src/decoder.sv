@@ -37,6 +37,7 @@ module decoder(
     wire [11:0]  imm_s  = {instruction[31:25], instruction[11:7]};
     wire [12:0]  imm_b  = {instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
     wire [31:12] imm_u  = instruction[31:12];
+    wire [20:0]  imm_j  = {instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
 
     always @(posedge clk) begin
         if (reset) begin
@@ -88,8 +89,23 @@ module decoder(
                     3'b101: decoded_alu_instruction <= BGE;
                     default: $error("Invalid B-type instruction with funct3 %b", funct3);
                 endcase
-            end else if (opcode == `OPCODE_J) begin
-
+            end else if (opcode == `OPCODE_J) begin // JAL
+                decoded_rd_address <= rd;
+                decoded_reg_write_enable <= 1;
+                decoded_reg_input_mux <= PC_PLUS_1;
+                decoded_scalar_instruction <= 1;
+                decoded_alu_instruction <= JAL;
+                $display("Decoding instruction 0b%32b", instruction);
+                decoded_immediate <= sign_extend_21(imm_j);
+            end else if (opcode == `OPCODE_JALR) begin
+                // JALR instruction decoding
+                decoded_rd_address <= rd;
+                decoded_rs1_address <= rs1;
+                decoded_reg_write_enable <= 1;
+                decoded_reg_input_mux <= PC_PLUS_1;
+                decoded_scalar_instruction <= 1;
+                decoded_alu_instruction <= JALR;
+                decoded_immediate <= sign_extend(imm_i);
             end else begin
                 unique case (inst)
                     `OPCODE_R: begin
