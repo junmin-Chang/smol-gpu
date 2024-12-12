@@ -49,3 +49,35 @@ TEST_CASE("lw + sw") {
         CHECK(data_memory[i] == 10);
     }
 }
+
+TEST_CASE("mask") {
+    constexpr auto mem_cells_count = 2048;
+
+    auto top = Vgpu{};
+
+    auto data_mem = sim::make_data_memory<mem_cells_count, DATA_NUM_CHANNELS>(&top);
+    auto instruction_mem = sim::make_instruction_memory<mem_cells_count, INST_NUM_CHANNELS>(&top);
+
+    data_mem.push_data(IData{1} << 2);
+
+    auto mask_instruction = sim::lw(1, 0, 0).make_scalar();
+    instruction_mem.push_instruction(mask_instruction);
+    instruction_mem.push_instruction(sim::addi(5, 1 ,0));
+    instruction_mem.push_instruction(sim::sw(5, 1, 0));
+    instruction_mem.push_instruction(sim::halt());
+
+    sim::set_kernel_config(top, 0, 0, 1, 1);
+
+    auto done = sim::simulate(top, instruction_mem, data_mem, 100);
+
+    REQUIRE(done);
+
+    CHECK(data_mem[0] == 4);
+    for(auto i = 1; i < 32; i++) {
+        if(i == 2) {
+            CHECK(data_mem[i] == 2);
+        } else {
+            CHECK(data_mem[i] == 0);
+        }
+    }
+}
