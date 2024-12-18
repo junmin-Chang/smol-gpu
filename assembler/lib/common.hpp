@@ -5,6 +5,8 @@
 
 namespace as {
 
+using word_type = std::int32_t;
+
 template <class... Ts> struct overloaded : Ts... {
     using Ts::operator()...;
 };

@@ -45,7 +45,7 @@ auto Lexer::make_error(const std::string_view message) -> Error {
 }
 
 auto Lexer::parse_directive() -> std::expected<Token, Error> {
-    auto keyword = chop_while(is_alphabetic);
+    const auto keyword = chop_while(is_alphabetic);
 
     if (keyword == "threads") {
         return Token{ThreadsDirective{}, column_number};
@@ -64,10 +64,15 @@ auto Lexer::parse_number() -> std::expected<Token, Error> {
     auto number = parse_num(source);
     if (!number.has_value()) {
         auto error = number.error();
-        return std::unexpected(error);
+        return std::unexpected(make_error(error));
     }
     column_number += source_size_before - source.size();
-    return Token{*number, starting_col};
+    return Token{Immediate{*number}, starting_col};
+}
+
+auto Lexer::parse_instruction() -> std::expected<Token, Error> {
+    const auto keyword = chop_while(is_alphabetic);
+    return std::unexpected(make_error(std::format("Unexpected keyword '{}'", keyword)));
 }
 
 auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
@@ -85,26 +90,15 @@ auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
         return parse_number();
     }
 
-    /*if (is_alphabetic(c)) {*/
-    /*    return parse_keyword();*/
-    /*}*/
+    if (c == '.') {
+        chop();
+        return parse_directive();
+    }
 
-    chop();
+    if (is_alphabetic(c)) {
+        return parse_instruction();
+    }
 
-    /*switch (c) {*/
-    /*case '{':*/
-    /*    return as::Token{.token_type = as::LBrace{}, .row = line_number, .col = first_char_column};*/
-    /*case '}':*/
-    /*    return as::Token{.token_type = as::RBrace{}, .row = line_number, .col = first_char_column};*/
-    /*case '[':*/
-    /*    return as::Token{.token_type = as::LBracket{}, .row = line_number, .col = first_char_column};*/
-    /*case ']':*/
-    /*    return as::Token{.token_type = as::RBracket{}, .row = line_number, .col = first_char_column};*/
-    /*case ',':*/
-    /*    return as::Token{.token_type = as::Comma{}, .row = line_number, .col = first_char_column};*/
-    /*case ':':*/
-    /*    return as::Token{.token_type = as::Colon{}, .row = line_number, .col = first_char_column};*/
-    /*};*/
     return std::unexpected(make_error(std::format("Unexpected character '{}'", c)));
 }
 

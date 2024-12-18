@@ -6,11 +6,6 @@
 #include <string_view>
 #include <expected>
 
-// Include your parse_num implementation
-namespace as {
-    auto parse_num(std::string_view &source) -> std::expected<as::Immediate, sim::Error>;
-}
-
 TEST_CASE("parse_num - Decimal Numbers") {
     std::string_view input;
 
@@ -18,7 +13,7 @@ TEST_CASE("parse_num - Decimal Numbers") {
         input = "42";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == 42);
+        CHECK(*result == 42);
         CHECK(input.empty());
     }
 
@@ -26,7 +21,7 @@ TEST_CASE("parse_num - Decimal Numbers") {
         input = "-42";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == -42);
+        CHECK(*result == -42);
         CHECK(input.empty());
     }
 
@@ -57,7 +52,7 @@ TEST_CASE("parse_num - Hexadecimal Numbers") {
         input = "0x2A";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == 42);
+        CHECK(*result == 42);
         CHECK(input.empty());
     }
 
@@ -65,7 +60,7 @@ TEST_CASE("parse_num - Hexadecimal Numbers") {
         input = "-0x2A";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == -42);
+        CHECK(*result == -42);
         CHECK(input.empty());
     }
 
@@ -83,7 +78,7 @@ TEST_CASE("parse_num - Binary Numbers") {
         input = "0b101010";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == 42);
+        CHECK(*result == 42);
         CHECK(input.empty());
     }
 
@@ -91,7 +86,7 @@ TEST_CASE("parse_num - Binary Numbers") {
         input = "-0b101010";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == -42);
+        CHECK(*result == -42);
         CHECK(input.empty());
     }
 
@@ -109,7 +104,7 @@ TEST_CASE("parse_num - Octal Numbers") {
         input = "052";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == 42);
+        CHECK(*result == 42);
         CHECK(input.empty());
     }
 
@@ -117,7 +112,7 @@ TEST_CASE("parse_num - Octal Numbers") {
         input = "-052";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == -42);
+        CHECK(*result == -42);
         CHECK(input.empty());
     }
 
@@ -135,7 +130,7 @@ TEST_CASE("parse_num - Edge Cases") {
         input = "2147483647";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == 2147483647);
+        CHECK(*result == 2147483647);
         CHECK(input.empty());
     }
 
@@ -171,7 +166,7 @@ TEST_CASE("parse_num - Invalid Inputs") {
         input = "42.0";
         auto result = as::parse_num(input);
         REQUIRE(result.has_value());
-        CHECK(result->value == 42);
+        CHECK(*result == 42);
         CHECK(input == ".0");
     }
 

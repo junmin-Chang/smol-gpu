@@ -61,6 +61,7 @@ class Lexer {
 
     auto parse_directive() -> std::expected<Token, Error>;
     auto parse_number() -> std::expected<Token, Error>;
+    auto parse_instruction() -> std::expected<Token, Error>;
 
     uint32_t column_number;
     std::string_view source;

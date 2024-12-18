@@ -7,7 +7,7 @@
 
 namespace as {
 
-auto parse_num(std::string_view &source) -> std::expected<as::Immediate, sim::Error> {
+auto parse_num(std::string_view &source) -> std::expected<word_type, sim::Error> {
     if (source.empty()) {
         return std::unexpected("Expected a number, found ''");
     }
@@ -22,7 +22,7 @@ auto parse_num(std::string_view &source) -> std::expected<as::Immediate, sim::Er
     }
 
     // Lambda to parse an integer with a specific base
-    auto parse_integral = [&](int base) -> std::expected<as::Immediate, sim::Error> {
+    auto parse_integral = [&](int base) -> std::expected<word_type, sim::Error> {
         const char* begin = source.data();
 
         auto i = 0u;
@@ -46,7 +46,7 @@ auto parse_num(std::string_view &source) -> std::expected<as::Immediate, sim::Er
         if (is_negative) {
             result = -result;
         }
-        return as::Immediate{.value = result};
+        return result;
     };
 
     // Check for number format

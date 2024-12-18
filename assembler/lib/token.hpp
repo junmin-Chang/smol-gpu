@@ -26,8 +26,8 @@ struct RegisterData {
     auto operator!=(const RegisterData &other) const -> bool = default;
 };
 
-DEFINE_TOKEN_TYPE(ThreadsDirective, std::uint32_t count;)
-DEFINE_TOKEN_TYPE(WarpsDirective, std::uint32_t count;)
+DEFINE_TOKEN_TYPE(ThreadsDirective)
+DEFINE_TOKEN_TYPE(WarpsDirective)
 DEFINE_TOKEN_TYPE(Mnemonic, std::string_view mnemonic;)
 DEFINE_TOKEN_TYPE(Label, std::string_view name;)
 DEFINE_TOKEN_TYPE(LabelRef, std::string_view label_name;)
@@ -43,6 +43,11 @@ struct Token {
 
     auto operator==(const Token &other) const -> bool {
         return token_type == other.token_type && col == other.col;
+    }
+
+    template<typename T>
+    [[nodiscard]] auto is_of_type() const -> bool {
+        return std::holds_alternative<T>(token_type);
     }
 };
 

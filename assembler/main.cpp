@@ -107,7 +107,7 @@ auto main(int argc, char** argv) -> int {
     if(!number) {
         std::println("No value, err: {}.", number.error(), number_str);
     } else {
-        std::println("value: {}", number->value);
+        std::println("value: {}", *number);
     }
 
     std::println("Leftover: {}", number_str);
