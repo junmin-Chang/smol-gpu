@@ -57,11 +57,11 @@ class Lexer {
     auto peek() -> std::optional<char>;
     void trim_whitespace();
 
-    auto make_error(const std::string_view message) -> Error;
+    auto make_error(const std::string_view message, std::optional<uint32_t> col = {}) -> Error;
 
     auto parse_directive() -> std::expected<Token, Error>;
     auto parse_number() -> std::expected<Token, Error>;
-    auto parse_instruction() -> std::expected<Token, Error>;
+    auto parse_keyword() -> std::expected<Token, Error>;
 
     uint32_t column_number;
     std::string_view source;

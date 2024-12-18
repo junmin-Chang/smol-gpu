@@ -67,5 +67,38 @@ auto parse_num(std::string_view &source) -> std::expected<word_type, sim::Error>
     return parse_integral(10);
 }
 
+
+auto str_check_predicate(const std::string_view str, const std::function<bool(char)>& predicate) -> bool {
+    return std::all_of(str.begin(), str.end(), predicate);
+}
+
+auto str_to_reg(std::string_view str) -> std::expected<RegisterData, sim::Error> {
+    if (str.size() < 2) {
+        return std::unexpected(std::format("Invalid register name: '{}'", str));
+    }
+
+    auto reg = RegisterData{};
+    if (str[0] == 'x') {
+        reg.type = RegisterType::VECTOR;
+    } else if (str[0] == 's') {
+        reg.type = RegisterType::SCALAR;
+    } else if (str == "pc") {
+        reg.type = RegisterType::PC;
+        return reg;
+    } else {
+        return std::unexpected(std::format("Invalid register name: '{}'", str));
+    }
+
+    auto reg_num_str = str.substr(1);
+    auto reg_num = std::int32_t{};
+    auto [ptr, ec] = std::from_chars(reg_num_str.data(), reg_num_str.data() + reg_num_str.size(), reg_num);
+    if (ec != std::errc{}) {
+        return std::unexpected(std::format("Failed to parse register number '{}': {}", reg_num_str, std::make_error_code(ec).message()));
+    }
+    reg.register_number = reg_num;
+
+    return reg;
+}
+
 } // namespace as
 

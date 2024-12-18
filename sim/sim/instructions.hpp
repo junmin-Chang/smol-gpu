@@ -40,6 +40,81 @@ constexpr auto opcodes = std::array{
     SX_SLT,
     SX_SLTI
 };
+
+constexpr auto str_to_opcode(std::string_view str) -> std::optional<IData> {
+    auto is_scalar = str.starts_with("s.");
+    if (is_scalar) {
+        str.remove_prefix(2);
+    }
+
+    auto opcode = IData{};
+
+    if (str == "lui") {
+        opcode = LUI;
+    } else if (str == "auipc") {
+        opcode = AUIPC;
+    } else if (str == "addi") {
+        opcode = ITYPE;
+    } else if (str == "add") {
+        opcode = RTYPE;
+    } else if (str == "sub") {
+        opcode = RTYPE;
+    } else if (str == "slli") {
+        opcode = ITYPE;
+    } else if (str == "slti") {
+        opcode = ITYPE;
+    } else if (str == "sltiu") {
+        opcode = ITYPE;
+    } else if (str == "xori") {
+        opcode = ITYPE;
+    } else if (str == "srli") {
+        opcode = ITYPE;
+    } else if (str == "srai") {
+        opcode = ITYPE;
+    } else if (str == "ori") {
+        opcode = ITYPE;
+    } else if (str == "andi") {
+        opcode = ITYPE;
+    } else if (str == "lb") {
+        opcode = LOAD;
+    } else if (str == "lh") {
+        opcode = LOAD;
+    } else if (str == "lw") {
+        opcode = LOAD;
+    } else if (str == "sb") {
+        opcode = STYPE;
+    } else if (str == "sh") {
+        opcode = STYPE;
+    } else if (str == "sw") {
+        opcode = STYPE;
+    } else if (str == "beq") {
+        opcode = BTYPE;
+    } else if (str == "bne") {
+        opcode = BTYPE;
+    } else if (str == "blt") {
+        opcode = BTYPE;
+    } else if (str == "bge") {
+        opcode = BTYPE;
+    } else if (str == "jal") {
+        opcode = JTYPE;
+    } else if (str == "jalr") {
+        opcode = JALR;
+    } else if (str == "halt") {
+        opcode = HALT;
+    } else if (str == "sx.slt") {
+        opcode = SX_SLT;
+    } else if (str == "sx.slti") {
+        opcode = SX_SLTI;
+    } else {
+        return std::nullopt;
+    }
+
+    if (is_scalar) {
+        opcode |= (IData)1 << 6u;
+    }
+
+    return opcode;
+}
 }
 
 // Funct3

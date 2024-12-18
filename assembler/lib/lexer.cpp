@@ -1,5 +1,6 @@
 #include "lexer.hpp"
 #include "common.hpp"
+#include "instructions.hpp"
 #include "parser_utils.hpp"
 
 namespace as {
@@ -40,8 +41,9 @@ void Lexer::trim_whitespace() {
     }
 }
 
-auto Lexer::make_error(const std::string_view message) -> Error {
-    return std::format("Error:{}: {}.", column_number, message);
+auto Lexer::make_error(const std::string_view message, std::optional<uint32_t> col) -> Error {
+    auto column_number_loc = col.value_or(this->column_number);
+    return std::format("Error:{}: {}.", column_number_loc, message);
 }
 
 auto Lexer::parse_directive() -> std::expected<Token, Error> {
@@ -70,9 +72,49 @@ auto Lexer::parse_number() -> std::expected<Token, Error> {
     return Token{Immediate{*number}, starting_col};
 }
 
-auto Lexer::parse_instruction() -> std::expected<Token, Error> {
-    const auto keyword = chop_while(is_alphabetic);
-    return std::unexpected(make_error(std::format("Unexpected keyword '{}'", keyword)));
+auto Lexer::parse_keyword() -> std::expected<Token, Error> {
+    const auto starting_col = column_number;
+
+    auto word = chop_while([](char c) { return is_alphanumeric(c) || is_label_char(c) || c == '.' || c == ':'; });
+    const auto opcode = sim::opcode::str_to_opcode(word);
+
+    std::println("word: '{}', rest: '{}'", word, source);
+
+    // 1. Check if it's an opcode
+    if (opcode.has_value()) {
+        return Token{Mnemonic{.mnemonic = *opcode}, starting_col};
+    }
+
+    // 2. Check if it's a label
+    if (word.back() == ':') {
+        word.remove_suffix(1);
+        if (str_check_predicate(word, is_label_char)) {
+            return Token{Label{.name = word}, starting_col};
+        }
+    }
+
+    // 3. Check if it's a register
+    auto reg_error = std::optional<Error>{};
+    if (word[0] == 'x' || word[0] == 's' || word == "pc") {
+        auto reg = str_to_reg(word);
+        if (reg.has_value()) {
+            return Token{Register{.register_data = *reg}, starting_col};
+        } else {
+            reg_error = reg.error();
+        }
+    }
+
+    // 4. Check if it's a label reference
+    if (str_check_predicate(word, is_label_char)) {
+        return Token{LabelRef{.label_name = word}, starting_col};
+    }
+
+    // 5. If none of the above, return an error
+    if (reg_error) {
+        return std::unexpected(make_error(reg_error.value(), starting_col));
+    }
+
+    return std::unexpected(make_error(std::format("Unexpected keyword '{}'", word), starting_col));
 }
 
 auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
@@ -96,10 +138,10 @@ auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
     }
 
     if (is_alphabetic(c)) {
-        return parse_instruction();
+        return parse_keyword();
     }
 
-    return std::unexpected(make_error(std::format("Unexpected character '{}'", c)));
+    return std::unexpected(make_error(std::format("Unexpected character '{}'", c), first_char_column));
 }
 
 auto collect_tokens(const std::string_view source) -> std::pair<std::vector<Token>, std::vector<sim::Error>> {

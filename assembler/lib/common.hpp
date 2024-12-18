@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <variant>
 
@@ -26,6 +28,8 @@ constexpr auto is_lowercase_alphabetic(char c) -> bool { return (c >= 'a' && c <
 constexpr auto is_uppercase_alphabetic(char c) -> bool { return (c >= 'A' && c <= 'Z'); }
 constexpr auto is_alphabetic(char c) -> bool { return is_lowercase_alphabetic(c) || is_uppercase_alphabetic(c); }
 constexpr auto is_alphanumeric(char c, std::uint32_t base = 10) -> bool { return is_alphabetic(c) || is_numeric(c, base); }
+
+constexpr auto is_label_char(char c) -> bool { return is_alphanumeric(c) || c == '_'; }
 
 using num_type = std::variant<double, std::int64_t>;
 constexpr auto as_double(num_type num) -> double {

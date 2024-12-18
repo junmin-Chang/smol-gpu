@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <variant>
 #include <string_view>
+#include "lexer.hpp"
 
 auto open_file(const std::string_view filename) -> std::expected<std::ifstream, std::string_view> {
     auto file = std::ifstream{filename.data()};
@@ -100,17 +101,17 @@ auto trim_line(std::string_view& line) -> std::string_view {
 /*}*/
 
 auto main(int argc, char** argv) -> int {
-    std::string_view number_str = "123abc";
+    std::string_view str = "label:";
 
-    auto number = as::parse_num(number_str);
+    const auto& [tokens, errors] = as::collect_tokens(str);
 
-    if(!number) {
-        std::println("No value, err: {}.", number.error(), number_str);
-    } else {
-        std::println("value: {}", *number);
+    for (const auto &error : errors) {
+        std::println("Error: {}", error);
     }
 
-    std::println("Leftover: {}", number_str);
+    for (const auto &token : tokens) {
+        std::println("{}", token.to_str());
+    }
 
     /*if (argc < 3) {*/
     /*    std::println("Usage: {} <input file> <output_file>", argv[0]);*/
