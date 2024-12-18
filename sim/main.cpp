@@ -4,6 +4,8 @@
 auto main() -> int {
     std::println("Hello from cpp!");
 
+    using namespace sim::instructions;
+
     Vgpu top{};
 
     constexpr auto num_channels = 8;
@@ -13,15 +15,13 @@ auto main() -> int {
 
     data_mem.push_data(IData{1} << 2);
 
-    auto mask_instruction = sim::lw(1, 0, 0).make_scalar();
-    auto jal = sim::jal(8, 10);
+    auto mask_instruction = lw(1, 0, 0).make_scalar();
+    auto jal_instruction = jal(8, 10);
 
-
-    /*instruction_mem.push_instruction(sim::jal(8, 10));*/
-    instruction_mem.push_instruction(sim::addi(5, 1 ,0));
-    instruction_mem.push_instruction(sim::sx_slti(1, 5, 5));
-    instruction_mem.push_instruction(sim::sw(5, 1, 0));
-    instruction_mem.push_instruction(sim::halt());
+    instruction_mem.push_instruction(addi(5, 1 ,0));
+    instruction_mem.push_instruction(sx_slti(1, 5, 5));
+    instruction_mem.push_instruction(sw(5, 1, 0));
+    instruction_mem.push_instruction(halt());
 
     // Prepare kernel configuration
     sim::set_kernel_config(top, 0, 0, 1, 1);

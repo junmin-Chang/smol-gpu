@@ -1,7 +1,4 @@
-set(EXEC_NAME "simulator")
-
-add_library(Sim INTERFACE)
-target_include_directories(Sim INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/sim)
+set(EXEC_NAME "assembler")
 
 add_executable(${EXEC_NAME} main.cpp)
 
@@ -12,8 +9,6 @@ if(SANITIZER_AVAILABLE_AND_SET)
   target_link_libraries(${EXEC_NAME} ${SANITIZER_FLAGS})
 endif()
 
-target_link_libraries(${EXEC_NAME} Sim)
-
 target_compile_options(${EXEC_NAME} PRIVATE ${MAIN_FLAGS})
 
-target_link_libraries(${EXEC_NAME} GPU)
+target_link_libraries(${EXEC_NAME} GPU Sim)

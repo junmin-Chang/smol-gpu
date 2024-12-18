@@ -2,6 +2,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 #include "sim.hpp"
+#include "instructions.hpp"
+
+using namespace sim::instructions;
 
 constexpr auto INST_NUM_CHANNELS = Vgpu_gpu::INSTRUCTION_MEM_NUM_CHANNELS;
 constexpr auto DATA_NUM_CHANNELS = Vgpu_gpu::DATA_MEM_NUM_CHANNELS;
@@ -12,9 +15,9 @@ TEST_CASE("mov + sw + halt") {
     auto instruction_memory = sim::make_instruction_memory<1024, INST_NUM_CHANNELS>(&gpu);
     auto data_memory = sim::make_data_memory<1024, DATA_NUM_CHANNELS>(&gpu);
 
-    instruction_memory.push_instruction(sim::addi(5, 1, 0));
-    instruction_memory.push_instruction(sim::sw(5, 1, 0));
-    instruction_memory.push_instruction(sim::halt());
+    instruction_memory.push_instruction(addi(5, 1, 0));
+    instruction_memory.push_instruction(sw(5, 1, 0));
+    instruction_memory.push_instruction(halt());
 
     sim::set_kernel_config(gpu, 0, 0, 1, 1);
 
@@ -36,13 +39,13 @@ TEST_CASE("lw + sw") {
     data_memory.push_data(20);
     data_memory.push_data(30);
 
-    instruction_memory.push_instruction(sim::lw(6, 0, 0));
-    instruction_memory.push_instruction(sim::sw(1, 6, 0));
-    instruction_memory.push_instruction(sim::halt());
+    instruction_memory.push_instruction(lw(6, 0, 0));
+    instruction_memory.push_instruction(sw(1, 6, 0));
+    instruction_memory.push_instruction(halt());
 
     sim::set_kernel_config(gpu, 0, 0, 1, 1);
 
-    auto done = sim::simulate(gpu, instruction_memory, data_memory, 10000);
+    auto done = simulate(gpu, instruction_memory, data_memory, 10000);
 
     REQUIRE(done);
     for(auto i = 0; i < 32; i++) {
@@ -59,18 +62,18 @@ TEST_CASE("add") {
     data_mem.push_data(10);
     data_mem.push_data(20);
 
-    instruction_mem.push_instruction(sim::lw(6, 0, 0));
-    instruction_mem.push_instruction(sim::lw(5, 0, 1));
-    instruction_mem.push_instruction(sim::add(7, 6, 5));
-    instruction_mem.push_instruction(sim::sw(1, 7, 0));
-    instruction_mem.push_instruction(sim::halt());
+    instruction_mem.push_instruction(lw(6, 0, 0));
+    instruction_mem.push_instruction(lw(5, 0, 1));
+    instruction_mem.push_instruction(add(7, 6, 5));
+    instruction_mem.push_instruction(sw(1, 7, 0));
+    instruction_mem.push_instruction(halt());
 
 
     // Prepare kernel configuration
     sim::set_kernel_config(top, 0, 0, 1, 1);
 
     // Run simulation
-    auto done = sim::simulate(top, instruction_mem, data_mem, 2000);
+    auto done = simulate(top, instruction_mem, data_mem, 2000);
 
     REQUIRE(done);
     for(auto i = 0; i < 32; i++) {
@@ -88,17 +91,17 @@ TEST_CASE("mask") {
 
     data_mem.push_data(IData{1} << 2);
 
-    auto mask_instruction = sim::lw(1, 0, 0);
+    auto mask_instruction = lw(1, 0, 0);
     mask_instruction.bits |= 1 << 6;
 
     instruction_mem.push_instruction(mask_instruction);
-    instruction_mem.push_instruction(sim::addi(5, 1 ,0));
-    instruction_mem.push_instruction(sim::sw(5, 1, 0));
-    instruction_mem.push_instruction(sim::halt());
+    instruction_mem.push_instruction(addi(5, 1 ,0));
+    instruction_mem.push_instruction(sw(5, 1, 0));
+    instruction_mem.push_instruction(halt());
 
     sim::set_kernel_config(top, 0, 0, 1, 1);
 
-    auto done = sim::simulate(top, instruction_mem, data_mem, 500);
+    auto done = simulate(top, instruction_mem, data_mem, 500);
 
     REQUIRE(done);
 
@@ -118,16 +121,16 @@ TEST_CASE("sx_slti") {
     auto data_mem = sim::make_data_memory<2048, 8>(&top);
     auto instruction_mem = sim::make_instruction_memory<2048, 8>(&top);
 
-    instruction_mem.push_instruction(sim::addi(5, 1 ,0));
-    instruction_mem.push_instruction(sim::sx_slti(1, 5, 5));
-    instruction_mem.push_instruction(sim::sw(5, 1, 0));
-    instruction_mem.push_instruction(sim::halt());
+    instruction_mem.push_instruction(addi(5, 1 ,0));
+    instruction_mem.push_instruction(sx_slti(1, 5, 5));
+    instruction_mem.push_instruction(sw(5, 1, 0));
+    instruction_mem.push_instruction(halt());
 
     // Prepare kernel configuration
     sim::set_kernel_config(top, 0, 0, 1, 1);
 
     // Run simulation
-    auto done = sim::simulate(top, instruction_mem, data_mem, 2000);
+    auto done = simulate(top, instruction_mem, data_mem, 2000);
 
     REQUIRE(done);
     for(auto i = 0; i < 32; i++) {
