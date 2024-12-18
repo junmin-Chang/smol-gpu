@@ -9,3 +9,4 @@ endfunction()
 
 create_test(test_instructions test.cpp Sim GPU)
 create_test(generic_tests test2.cpp Sim GPU)
+create_test(number_parising_test assembler/number_parsing.cpp AsLib)

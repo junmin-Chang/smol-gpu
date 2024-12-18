@@ -1,10 +1,13 @@
 #pragma once
 #include <print>
 #include <string_view>
+#include <string>
 #include <cassert>
 #include <expected>
 
 namespace sim {
+
+using Error = std::string;
 
 inline void error(const std::string_view message) {
     std::println(stderr, "Error: {}.", message);

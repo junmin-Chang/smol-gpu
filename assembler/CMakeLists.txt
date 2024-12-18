@@ -1,5 +1,7 @@
 set(EXEC_NAME "assembler")
 
+add_subdirectory(lib)
+
 add_executable(${EXEC_NAME} main.cpp)
 
 set(MAIN_FLAGS ${COMPILE_FLAGS})
@@ -11,4 +13,4 @@ endif()
 
 target_compile_options(${EXEC_NAME} PRIVATE ${MAIN_FLAGS})
 
-target_link_libraries(${EXEC_NAME} GPU Sim)
+target_link_libraries(${EXEC_NAME} GPU Sim AsLib)
