@@ -132,14 +132,25 @@ auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
         return parse_number();
     }
 
-    if (c == '.') {
-        chop();
-        return parse_directive();
-    }
-
     if (is_alphabetic(c)) {
         return parse_keyword();
     }
+
+    // Need to chop cause we only peeked before
+    chop();
+
+    switch (c) {
+        case '(':
+            return Token{Lparen{}, first_char_column};
+        case ')':
+            return Token{Rparen{}, first_char_column};
+        case ',':
+            return Token{Comma{}, first_char_column};
+        case '.':
+            return parse_directive();
+    }
+
+
 
     return std::unexpected(make_error(std::format("Unexpected character '{}'", c), first_char_column));
 }
