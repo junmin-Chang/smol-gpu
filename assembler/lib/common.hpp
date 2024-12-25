@@ -14,20 +14,20 @@ template <class... Ts> struct overloaded : Ts... {
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-constexpr auto is_numeric(char c, std::uint32_t base = 10) -> bool {
+constexpr auto is_numeric(char c, std::uint8_t base = 10) -> bool {
     if (base > 1 && base <= 10) {
         // bases 2-10
         return c >= '0' && c < '0' + base;
     } else if (base <= 10 + 26) {
         // bases 11-36 (number of digits + number of letters)
-        return c >= '0' && c <= '9' || c >= 'A' && c < 'A' + base - 10 || c >= 'a' && c < 'a' + base - 10;
+        return (c >= '0' && c <= '9') || (c >= 'A' && c < 'A' + base - 10) || (c >= 'a' && c < 'a' + base - 10);
     }
     return false;
 }
 constexpr auto is_lowercase_alphabetic(char c) -> bool { return (c >= 'a' && c <= 'z'); }
 constexpr auto is_uppercase_alphabetic(char c) -> bool { return (c >= 'A' && c <= 'Z'); }
 constexpr auto is_alphabetic(char c) -> bool { return is_lowercase_alphabetic(c) || is_uppercase_alphabetic(c); }
-constexpr auto is_alphanumeric(char c, std::uint32_t base = 10) -> bool { return is_alphabetic(c) || is_numeric(c, base); }
+constexpr auto is_alphanumeric(char c, std::uint8_t base = 10) -> bool { return is_alphabetic(c) || is_numeric(c, base); }
 
 constexpr auto is_label_char(char c) -> bool { return is_alphanumeric(c) || c == '_'; }
 

@@ -41,6 +41,18 @@ constexpr auto opcodes = std::array{
     SX_SLTI
 };
 
+constexpr auto is_scalar(IData opcode) -> bool {
+    return (opcode & ((IData)1 << 6u)) != 0u;
+}
+
+constexpr auto is_vector(IData opcode) -> bool {
+    return !is_scalar(opcode);
+}
+
+constexpr auto to_scalar(IData opcode) -> IData {
+    return opcode | ((IData)1 << 6u);
+}
+
 constexpr auto str_to_opcode(std::string_view str) -> std::optional<IData> {
     auto is_scalar = str.starts_with("s.");
     if (is_scalar) {
@@ -110,7 +122,7 @@ constexpr auto str_to_opcode(std::string_view str) -> std::optional<IData> {
     }
 
     if (is_scalar) {
-        opcode |= (IData)1 << 6u;
+        opcode = to_scalar(opcode);
     }
 
     return opcode;

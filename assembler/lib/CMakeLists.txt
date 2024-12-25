@@ -1,4 +1,4 @@
-add_library(AsLib STATIC lexer.cpp parser_utils.cpp)
+add_library(AsLib STATIC lexer.cpp parser_utils.cpp parser.cpp)
 
 target_link_libraries(AsLib PUBLIC Sim GPU)
 

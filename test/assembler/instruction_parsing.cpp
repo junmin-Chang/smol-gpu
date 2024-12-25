@@ -27,6 +27,9 @@ TEST_CASE("Lexing instructions") {
         {"sb", sim::opcode::STYPE},
         {"sh", sim::opcode::STYPE},
         {"sw", sim::opcode::STYPE},
+        {"halt", sim::opcode::HALT},
+        {"sx.slt", sim::opcode::SX_SLT},
+        {"sx.slti", sim::opcode::SX_SLTI}
     };
 
     for (const auto &[instr, opcode] : instructions) {
@@ -41,6 +44,22 @@ TEST_CASE("Lexing instructions") {
             REQUIRE(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic == sim::opcode::str_to_opcode(instr));
         }
     }
+
+    for (const auto &[instr, opcode] : instructions) {
+        SUBCASE(std::format("Instruction: s.{}: Check scalar", instr).data()) {
+            auto scalar_instr = std::format("s.{}", instr);
+            std::println("Checking: {}", scalar_instr);
+            input = scalar_instr;
+            const auto [tokens, errors] = as::collect_tokens(input);
+
+            REQUIRE_EQ(tokens.size(), 1);
+            REQUIRE_EQ(errors.size(), 0);
+            REQUIRE(tokens[0].is_of_type<as::Mnemonic>());
+            REQUIRE(sim::opcode::is_scalar(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic));
+            REQUIRE(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic == sim::opcode::str_to_opcode(scalar_instr));
+}
+    }
+
 }
 
 TEST_CASE("Lexing labels") {
