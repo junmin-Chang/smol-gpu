@@ -9,7 +9,7 @@ namespace as {
 
 auto parse_num(std::string_view &source) -> std::expected<word_type, sim::Error> {
     if (source.empty()) {
-        return std::unexpected("Expected a number, found ''");
+        return std::unexpected(sim::Error{.message = "Expected a number, found ''"});
     }
 
     // Check for negative sign
@@ -17,7 +17,7 @@ auto parse_num(std::string_view &source) -> std::expected<word_type, sim::Error>
     if (is_negative) {
         source.remove_prefix(1);
         if (source.empty()) {
-            return std::unexpected("Expected a number, found '-'");
+            return std::unexpected(sim::Error{.message = "Expected a number, found '-'"});
         }
     }
 
@@ -31,7 +31,7 @@ auto parse_num(std::string_view &source) -> std::expected<word_type, sim::Error>
                 auto failing_part = std::string_view(begin, begin + i + 1);
                 auto digit = source[i];
                 source.remove_prefix(i);
-                return std::unexpected(std::format("Failed to parse number: '{}': Invalid digit '{}' for base {}", failing_part, digit, base));
+                return std::unexpected(sim::Error{.message = std::format("Failed to parse number: '{}': Invalid digit '{}' for base {}", failing_part, digit, base)});
             }
             i++;
         }
@@ -40,7 +40,7 @@ auto parse_num(std::string_view &source) -> std::expected<word_type, sim::Error>
         auto [ptr, ec] = std::from_chars(begin, end, result, base);
         if (ec != std::errc{}) {
             auto failing_part = std::string_view(begin, end - begin);
-            return std::unexpected(std::format("Failed to parse number '{}': {}", failing_part, std::make_error_code(ec).message()));
+            return std::unexpected(sim::Error{.message = std::format("Failed to parse number '{}': {}", failing_part, std::make_error_code(ec).message())});
         }
         source.remove_prefix(ptr - begin);
         if (is_negative) {
@@ -72,28 +72,25 @@ auto str_check_predicate(const std::string_view str, const std::function<bool(ch
     return std::all_of(str.begin(), str.end(), predicate);
 }
 
-auto str_to_reg(std::string_view str) -> std::expected<RegisterData, sim::Error> {
+auto str_to_reg(std::string_view str) -> std::expected<sim::Register, sim::Error> {
     if (str.size() < 2) {
-        return std::unexpected(std::format("Invalid register name: '{}'", str));
+        return std::unexpected(sim::Error{.message = std::format("Invalid register name: '{}'", str)});
     }
 
-    auto reg = RegisterData{};
+    auto reg = sim::Register{};
     if (str[0] == 'x') {
-        reg.type = RegisterType::VECTOR;
+        reg.type = sim::RegisterType::VECTOR;
     } else if (str[0] == 's') {
-        reg.type = RegisterType::SCALAR;
-    } else if (str == "pc") {
-        reg.type = RegisterType::PC;
-        return reg;
+        reg.type = sim::RegisterType::SCALAR;
     } else {
-        return std::unexpected(std::format("Invalid register name: '{}'", str));
+        return std::unexpected(sim::Error{.message = std::format("Invalid register name: '{}'", str)});
     }
 
     auto reg_num_str = str.substr(1);
     auto reg_num = std::int32_t{};
     auto [ptr, ec] = std::from_chars(reg_num_str.data(), reg_num_str.data() + reg_num_str.size(), reg_num);
     if (ec != std::errc{}) {
-        return std::unexpected(std::format("Failed to parse register number '{}': {}", reg_num_str, std::make_error_code(ec).message()));
+        return std::unexpected(sim::Error{.message = std::format("Failed to parse register number '{}': {}", reg_num_str, std::make_error_code(ec).message())});
     }
     reg.register_number = reg_num;
 

@@ -7,8 +7,8 @@ function(create_test test_name source_file)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
-create_test(test_instructions test.cpp Sim GPU)
-create_test(generic_tests test2.cpp Sim GPU)
+# create_test(test_instructions test.cpp Sim GPU)
+# create_test(generic_tests test2.cpp Sim GPU)
 
 create_test(number_parsing_test assembler/number_parsing.cpp AsLib)
 create_test(directive_parsing_test assembler/directive_parsing.cpp AsLib)

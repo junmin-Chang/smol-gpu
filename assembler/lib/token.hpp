@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "instructions.hpp"
 #include <string_view>
 #include <variant>
 #include <cstdint>
@@ -14,71 +15,62 @@ namespace as {
         auto operator!=(const name&) const -> bool = default;                                                    \
     };
 
-/*
-x0-x31 -> VECTOR
-s0-s31 -> SCALAR
-pc -> PC
-*/
-enum class RegisterType {
-    VECTOR,
-    SCALAR,
-    PC
-};
-
-struct RegisterData {
-    std::uint32_t register_number;
-    RegisterType type;
-
-    auto operator==(const RegisterData &other) const -> bool {
-        return (register_number == other.register_number && type == other.type) || (type == RegisterType::PC && other.type == RegisterType::PC);
-    }
-    auto operator!=(const RegisterData &other) const -> bool = default;
-
-    [[nodiscard]] auto is_scalar() const -> bool {
-        return type == RegisterType::SCALAR;
-    }
-
-    [[nodiscard]] auto is_vector() const -> bool {
-        return type == RegisterType::VECTOR;
-    }
-
-    [[nodiscard]] auto to_str() const -> std::string {
-        switch (type) {
-        case RegisterType::VECTOR:
-            return std::format("x{}", register_number);
-        case RegisterType::SCALAR:
-            return std::format("s{}", register_number);
-        case RegisterType::PC:
-            return "pc";
-        }
-        return "unknown";
-    }
-};
-
-DEFINE_TOKEN_TYPE(ThreadsDirective)
+namespace token {
+DEFINE_TOKEN_TYPE(BlocksDirective)
 DEFINE_TOKEN_TYPE(WarpsDirective)
-DEFINE_TOKEN_TYPE(Mnemonic, IData mnemonic;)
+DEFINE_TOKEN_TYPE(Mnemonic, sim::Mnemonic mnemonic;)
 DEFINE_TOKEN_TYPE(Label, std::string_view name;)
 DEFINE_TOKEN_TYPE(LabelRef, std::string_view label_name;)
 DEFINE_TOKEN_TYPE(Immediate, std::int32_t value;)
-DEFINE_TOKEN_TYPE(Register, RegisterData register_data;)
+DEFINE_TOKEN_TYPE(Register, sim::Register register_data;)
 DEFINE_TOKEN_TYPE(Comma);
 DEFINE_TOKEN_TYPE(Lparen);
 DEFINE_TOKEN_TYPE(Rparen);
 
-using TokenType = std::variant<ThreadsDirective, WarpsDirective, Mnemonic, Label, LabelRef, Immediate, Register, Comma, Lparen, Rparen>;
+using TokenType = std::variant<BlocksDirective, WarpsDirective, Mnemonic, Label, LabelRef, Immediate, Register, Comma, Lparen, Rparen>;
+
+template<typename T, typename... Ts>
+inline auto token_type_to_str() -> std::string {
+    if constexpr (sizeof...(Ts) == 0) {
+        if constexpr (std::is_same_v<T, BlocksDirective>) {
+            return ".blocks";
+        } else if constexpr (std::is_same_v<T, WarpsDirective>) {
+            return ".warps";
+        } else if constexpr (std::is_same_v<T, Mnemonic>) {
+            return "mnemonic";
+        } else if constexpr (std::is_same_v<T, Label>) {
+            return "label";
+        } else if constexpr (std::is_same_v<T, LabelRef>) {
+            return "label_ref";
+        } else if constexpr (std::is_same_v<T, Immediate>) {
+            return "immediate";
+        } else if constexpr (std::is_same_v<T, Register>) {
+            return "register";
+        } else if constexpr (std::is_same_v<T, Comma>) {
+            return "','";
+        } else if constexpr (std::is_same_v<T, Lparen>) {
+            return "'('";
+        } else if constexpr (std::is_same_v<T, Rparen>) {
+            return "')'";
+        }
+        return "unknown";
+    } else {
+        return token_type_to_str<T>() + " or " + token_type_to_str<Ts...>();
+    }
+}
+}
 
 struct Token {
-    TokenType token_type;
+    token::TokenType token_type;
     std::uint32_t col;
 
     auto operator==(const Token &other) const -> bool {
         return token_type == other.token_type && col == other.col;
     }
 
-    template<typename T>
+    template<typename ...T>
     [[nodiscard]] auto is_of_type() const -> bool {
-        return std::holds_alternative<T>(token_type);
+        return std::holds_alternative<T...>(token_type);
     }
 
     template<typename T>
@@ -93,16 +85,16 @@ struct Token {
 
     [[nodiscard]] auto to_str() const -> std::string {
         return std::visit(overloaded{
-                          [](const ThreadsDirective &) -> std::string { return ".threads"; },
-                          [](const WarpsDirective &) -> std::string { return ".warps"; },
-                          [](const Mnemonic &m) -> std::string { return std::to_string(m.mnemonic); },
-                          [](const Label &l) -> std::string { return std::string(l.name); },
-                          [](const LabelRef &lr) -> std::string { return std::string(lr.label_name); },
-                          [](const Immediate &i) -> std::string { return std::to_string(i.value); },
-                          [](const Register &r) -> std::string { return std::format("{}", r.register_data.to_str()); },
-                          [](const Comma &) -> std::string { return "','"; },
-                          [](const Lparen &) -> std::string { return "'('"; },
-                          [](const Rparen &) -> std::string { return "')'"; },
+                          [](const token::BlocksDirective &) -> std::string { return ".threads"; },
+                          [](const token::WarpsDirective &) -> std::string { return ".warps"; },
+                          [](const token::Mnemonic &m) -> std::string { return m.mnemonic.to_str(); },
+                          [](const token::Label &l) -> std::string { return std::string(l.name); },
+                          [](const token::LabelRef &lr) -> std::string { return std::string(lr.label_name); },
+                          [](const token::Immediate &i) -> std::string { return std::to_string(i.value); },
+                          [](const token::Register &r) -> std::string { return std::format("{}", r.register_data.to_str()); },
+                          [](const token::Comma &) -> std::string { return "','"; },
+                          [](const token::Lparen &) -> std::string { return "'('"; },
+                          [](const token::Rparen &) -> std::string { return "')'"; },
                           },
                       token_type);
     }

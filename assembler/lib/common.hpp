@@ -14,6 +14,7 @@ template <class... Ts> struct overloaded : Ts... {
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+constexpr auto is_whitespace(char c) -> bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
 constexpr auto is_numeric(char c, std::uint8_t base = 10) -> bool {
     if (base > 1 && base <= 10) {
         // bases 2-10

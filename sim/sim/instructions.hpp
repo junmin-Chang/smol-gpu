@@ -8,38 +8,51 @@
 namespace sim {
 
 // Opcodes
-namespace opcode {
-// if a define here is 6 bits, then the 7th leftmost bit defines whether it's a scalar or vector instruction
+
+// if a value here is 6 bits, then the 7th leftmost bit defines whether it's a scalar or vector instruction
 // 1 for scalar, 0 for vector
-constexpr IData LUI      =  0b110111;         // Used by LUI (U-type)
-constexpr IData AUIPC    =  0b010111;         // Used by AUIPC
-constexpr IData ITYPE    =  0b010011;         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
-constexpr IData RTYPE    =  0b110011;         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
-constexpr IData LOAD     =  0b000011;         // Used by load instructions (LB, LH, LW)
-constexpr IData STYPE    =  0b100011;         // Used by store instructions (SB, SH, SW)
-// Jumps and branches can only be scalar instructions
-constexpr IData JTYPE    = 0b1101111;         // Used by JAL
-constexpr IData JALR     = 0b1100111;         // Used by JALR
-constexpr IData BTYPE    = 0b1100011;         // Used by branch instructions (BEQ, BNE, BLT, BGE)
-// Custom opcodes (also only scalar)
-constexpr IData HALT     = 0b1111111;         // Used by HALT
-constexpr IData SX_SLT   = 0b1111110;         // Used by SX_SLT
-constexpr IData SX_SLTI  = 0b1111101;         // Used by SX_SLTI
+enum class Opcode : IData {
+    LUI      =   0b110111,         // Used by LUI (U-type)
+    AUIPC    =   0b010111,         // Used by AUIPC
+    ITYPE    =   0b010011,         // Used by ALU I-type instructions (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
+    RTYPE    =   0b110011,         // Used by all R-type instructions (ADD, SUB, SLL, SLT, XOR, SRL, SRA)
+    LOAD     =   0b000011,         // Used by load instructions (LB, LH, LW)
+    STYPE    =   0b100011,         // Used by store instructions (SB, SH, SW)
+    // Jumps and branches can only be scalar instructions
+    JTYPE    =  0b1101111,         // Used by JAL (J-type)
+    JALR     =  0b1100111,         // Used by JALR (I-type)
+    BTYPE    =  0b1100011,         // Used by branch instructions (BEQ, BNE, BLT, BGE)
+    // Custom opcodes (also only scalar)
+    HALT     =  0b1111111,         // Used by HALT
+    SX_SLT   =  0b1111110,         // Used by SX_SLT
+    SX_SLTI  =  0b1111101          // Used by SX_SLTI
+};
 
 constexpr auto opcodes = std::array{
-    LUI,
-    AUIPC,
-    ITYPE,
-    RTYPE,
-    LOAD,
-    STYPE,
-    JTYPE,
-    JALR,
-    BTYPE,
-    HALT,
-    SX_SLT,
-    SX_SLTI
+    Opcode::LUI,
+    Opcode::AUIPC,
+    Opcode::ITYPE,
+    Opcode::RTYPE,
+    Opcode::LOAD,
+    Opcode::STYPE,
+    Opcode::JTYPE,
+    Opcode::JALR,
+    Opcode::BTYPE,
+    Opcode::HALT,
+    Opcode::SX_SLT,
+    Opcode::SX_SLTI
 };
+
+constexpr auto is_of_type(IData opcode, Opcode type) -> bool {
+    // The 6 bit opcodes
+    if (type == Opcode::LUI || type == Opcode::AUIPC || type == Opcode::ITYPE
+                            || type == Opcode::RTYPE || type == Opcode::LOAD || type == Opcode::STYPE) {
+        return (opcode & (IData)0b111111) == (IData)type;
+    }
+
+    // The 7 bit opcodes
+    return opcode == (IData)type;
+}
 
 constexpr auto is_scalar(IData opcode) -> bool {
     return (opcode & ((IData)1 << 6u)) != 0u;
@@ -53,70 +66,72 @@ constexpr auto to_scalar(IData opcode) -> IData {
     return opcode | ((IData)1 << 6u);
 }
 
+// This returns IData rather than Opcode because it can return a scalar version of the opcode
+// if the input string is prefixed with "s."
 constexpr auto str_to_opcode(std::string_view str) -> std::optional<IData> {
     auto is_scalar = str.starts_with("s.");
     if (is_scalar) {
         str.remove_prefix(2);
     }
 
-    auto opcode = IData{};
+    IData opcode{} ;
 
     if (str == "lui") {
-        opcode = LUI;
+        opcode = (IData)Opcode::LUI;
     } else if (str == "auipc") {
-        opcode = AUIPC;
+        opcode = (IData)Opcode::AUIPC;
     } else if (str == "addi") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "add") {
-        opcode = RTYPE;
+        opcode = (IData)Opcode::RTYPE;
     } else if (str == "sub") {
-        opcode = RTYPE;
+        opcode = (IData)Opcode::RTYPE;
     } else if (str == "slli") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "slti") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "sltiu") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "xori") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "srli") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "srai") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "ori") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "andi") {
-        opcode = ITYPE;
+        opcode = (IData)Opcode::ITYPE;
     } else if (str == "lb") {
-        opcode = LOAD;
+        opcode = (IData)Opcode::LOAD;
     } else if (str == "lh") {
-        opcode = LOAD;
+        opcode = (IData)Opcode::LOAD;
     } else if (str == "lw") {
-        opcode = LOAD;
+        opcode = (IData)Opcode::LOAD;
     } else if (str == "sb") {
-        opcode = STYPE;
+        opcode = (IData)Opcode::STYPE;
     } else if (str == "sh") {
-        opcode = STYPE;
+        opcode = (IData)Opcode::STYPE;
     } else if (str == "sw") {
-        opcode = STYPE;
+        opcode = (IData)Opcode::STYPE;
     } else if (str == "beq") {
-        opcode = BTYPE;
+        opcode = (IData)Opcode::BTYPE;
     } else if (str == "bne") {
-        opcode = BTYPE;
+        opcode = (IData)Opcode::BTYPE;
     } else if (str == "blt") {
-        opcode = BTYPE;
+        opcode = (IData)Opcode::BTYPE;
     } else if (str == "bge") {
-        opcode = BTYPE;
+        opcode = (IData)Opcode::BTYPE;
     } else if (str == "jal") {
-        opcode = JTYPE;
+        opcode = (IData)Opcode::JTYPE;
     } else if (str == "jalr") {
-        opcode = JALR;
+        opcode = (IData)Opcode::JALR;
     } else if (str == "halt") {
-        opcode = HALT;
+        opcode = (IData)Opcode::HALT;
     } else if (str == "sx.slt") {
-        opcode = SX_SLT;
+        opcode = (IData)Opcode::SX_SLT;
     } else if (str == "sx.slti") {
-        opcode = SX_SLTI;
+        opcode = (IData)Opcode::SX_SLTI;
     } else {
         return std::nullopt;
     }
@@ -127,184 +142,262 @@ constexpr auto str_to_opcode(std::string_view str) -> std::optional<IData> {
 
     return opcode;
 }
+
+constexpr auto opcode_to_str(IData opcode) -> std::string_view {
+    switch (opcode) {
+    case (IData)Opcode::LUI:
+        return is_scalar(opcode) ? "s.lui" : "lui";
+    case (IData)Opcode::AUIPC:
+        return is_scalar(opcode) ? "s.auipc" : "auipc";
+    case (IData)Opcode::ITYPE:
+        return is_scalar(opcode) ? "s.<itype>" : "<itype>";
+    case (IData)Opcode::RTYPE:
+        return is_scalar(opcode) ? "s.<rtype>" : "<rtype>";
+    case (IData)Opcode::LOAD:
+        return is_scalar(opcode) ? "s.<load>" : "<load>";
+    case (IData)Opcode::STYPE:
+        return is_scalar(opcode) ? "s.<store>" : "<store>";
+    case (IData)Opcode::JTYPE:
+        return "jal";
+    case (IData)Opcode::JALR:
+        return "jalr";
+    case (IData)Opcode::BTYPE:
+        return "beq";
+    case (IData)Opcode::HALT:
+        return "halt";
+    case (IData)Opcode::SX_SLT:
+        return "sx.slt";
+    case (IData)Opcode::SX_SLTI:
+        return "sx.slti";
+    default:
+        return "unknown";
+    }
 }
+
+
+
 
 // Funct3
-namespace funct3 {
+enum class Funct3 : IData {
 // I-type
-constexpr IData ADDI            = 0b000;
-constexpr IData SLTI            = 0b010;
-constexpr IData XORI            = 0b100;
-constexpr IData ORI             = 0b110;
-constexpr IData ANDI            = 0b111;
-constexpr IData SLLI            = 0b001;
-constexpr IData SRLI            = 0b101;
-constexpr IData SRAI            = 0b101;
+    ADDI            = 0b000,
+    SLTI            = 0b010,
+    XORI            = 0b100,
+    ORI             = 0b110,
+    ANDI            = 0b111,
+    SLLI            = 0b001,
+    SRLI            = 0b101,
+    SRAI            = 0b101,
 // R-type
-constexpr IData ADD             = 0b000;
-constexpr IData SUB             = 0b000;
-constexpr IData SLL             = 0b001;
-constexpr IData SLT             = 0b010;
-constexpr IData XOR             = 0b100;
-constexpr IData SRL             = 0b101;
-constexpr IData SRA             = 0b101;
-constexpr IData OR              = 0b110;
-constexpr IData AND             = 0b111;
+    ADD             = 0b000,
+    SUB             = 0b000,
+    SLL             = 0b001,
+    SLT             = 0b010,
+    XOR             = 0b100,
+    SRL             = 0b101,
+    SRA             = 0b101,
+    OR              = 0b110,
+    AND             = 0b111,
 // Load
-constexpr IData LB              = 0b000;
-constexpr IData LH              = 0b001;
-constexpr IData LW              = 0b010;
+    LB              = 0b000,
+    LH              = 0b001,
+    LW              = 0b010,
 // Store
-constexpr IData SB              = 0b000;
-constexpr IData SH              = 0b001;
-constexpr IData SW              = 0b010;
+    SB              = 0b000,
+    SH              = 0b001,
+    SW              = 0b010,
 // JALR
-constexpr IData JALR            = 0b000;
+    JALR            = 0b000,
 // B-type
-constexpr IData BEQ             = 0b000;
-constexpr IData BNE             = 0b001;
-constexpr IData BLT             = 0b100;
-constexpr IData BGE             = 0b101;
-
-constexpr auto funct3s = std::array<IData, 28>{
-    ADDI,
-    SLTI,
-    XORI,
-    ORI,
-    ANDI,
-    SLLI,
-    SRLI,
-    SRAI,
-    ADD,
-    SUB,
-    SLL,
-    SLT,
-    XOR,
-    SRL,
-    SRA,
-    OR,
-    AND,
-    LB,
-    LH,
-    LW,
-    SB,
-    SH,
-    SW,
-    JALR,
-    BEQ,
-    BNE,
-    BLT,
-    BGE
+    BEQ             = 0b000,
+    BNE             = 0b001,
+    BLT             = 0b100,
+    BGE             = 0b101,
 };
-}
+
+constexpr auto funct3s = std::array{
+    Funct3::ADDI,
+    Funct3::SLTI,
+    Funct3::XORI,
+    Funct3::ORI,
+    Funct3::ANDI,
+    Funct3::SLLI,
+    Funct3::SRLI,
+    Funct3::SRAI,
+    Funct3::ADD,
+    Funct3::SUB,
+    Funct3::SLL,
+    Funct3::SLT,
+    Funct3::XOR,
+    Funct3::SRL,
+    Funct3::SRA,
+    Funct3::OR,
+    Funct3::AND,
+    Funct3::LB,
+    Funct3::LH,
+    Funct3::LW,
+    Funct3::SB,
+    Funct3::SH,
+    Funct3::SW,
+    Funct3::JALR,
+    Funct3::BEQ,
+    Funct3::BNE,
+    Funct3::BLT,
+    Funct3::BGE
+};
 
 // Funct7
-namespace funct7 {
+enum class Funct7 : IData {
 // I-type
-constexpr IData SLLI            = 0b0000000;
-constexpr IData SRLI            = 0b0000000;
-constexpr IData SRAI            = 0b0100000;
+    SLLI            = 0b0000000,
+    SRLI            = 0b0000000,
+    SRAI            = 0b0100000,
 // R-type
-constexpr IData ADD             = 0b0000000;
-constexpr IData SUB             = 0b0100000;
-constexpr IData SLL             = 0b0000000;
-constexpr IData SLT             = 0b0000000;
-constexpr IData XOR             = 0b0000000;
-constexpr IData SRL             = 0b0000000;
-constexpr IData SRA             = 0b0100000;
-constexpr IData OR              = 0b0000000;
-constexpr IData AND             = 0b0000000;
-
-constexpr auto funct7s = std::array<IData, 12>{
-    SLLI,
-    SRLI,
-    SRAI,
-    ADD,
-    SUB,
-    SLL,
-    SLT,
-    XOR,
-    SRL,
-    SRA,
-    OR,
-    AND
+    ADD             = 0b0000000,
+    SUB             = 0b0100000,
+    SLL             = 0b0000000,
+    SLT             = 0b0000000,
+    XOR             = 0b0000000,
+    SRL             = 0b0000000,
+    SRA             = 0b0100000,
+    OR              = 0b0000000,
+    AND             = 0b0000000,
 };
-}
+
+constexpr auto funct7s = std::array{
+    Funct7::SLLI,
+    Funct7::SRLI,
+    Funct7::SRAI,
+    Funct7::ADD,
+    Funct7::SUB,
+    Funct7::SLL,
+    Funct7::SLT,
+    Funct7::XOR,
+    Funct7::SRL,
+    Funct7::SRA,
+    Funct7::OR,
+    Funct7::AND
+};
+
+/*
+x0-x31 -> VECTOR
+s0-s31 -> SCALAR
+*/
+enum class RegisterType {
+    VECTOR,
+    SCALAR,
+};
+
+struct Register {
+    IData register_number;
+    RegisterType type;
+
+    [[nodiscard]] constexpr auto bits() const -> IData {
+        return register_number;
+    }
+ 
+    auto operator==(const Register &other) const -> bool {
+        return register_number == other.register_number && type == other.type;
+    }
+    auto operator!=(const Register &other) const -> bool = default;
+
+    [[nodiscard]] auto is_scalar() const -> bool {
+        return type == RegisterType::SCALAR;
+    }
+
+    [[nodiscard]] auto is_vector() const -> bool {
+        return type == RegisterType::VECTOR;
+    }
+
+    [[nodiscard]] auto to_str() const -> std::string {
+        switch (type) {
+        case RegisterType::VECTOR:
+            return std::format("x{}", register_number);
+        case RegisterType::SCALAR:
+            return std::format("s{}", register_number);
+        }
+        return "unknown";
+    }
+
+    [[nodiscard]] auto validate() const -> bool {
+        return register_number < 32;
+    }
+};
 
 // Helper function for validating register numbers
-inline void validate_register(IData reg) {
-    assert_or_err(reg < 32, std::format("Invalid register number: '{}', expected values 0-31.", reg));
+inline void validate_register(Register reg) {
+    sim::assert_or_err( reg.validate(), Error{.message = std::format("Invalid register: '{}'.", reg.to_str())});
 }
 
 // Helper function for validating instruction IDs
 // used for validating opcodes, funct3s, and funct7s
 // possible_ids should be a std::array<IData, N>
-constexpr void validate_instr_id(const std::string_view id_name, const IData id, const auto &possible_ids) {
-    const auto bit_string = std::bitset<7>(id).to_string();
-    const auto found = std::find(possible_ids.begin(), possible_ids.end(), id);
-    assert_or_err(found != possible_ids.end(), std::format("Unknown {}: '0b{}'", id_name, bit_string));
+constexpr void validate_instr_id(const std::string_view id_name, const auto id, const auto &possible_ids) {
+    const auto bit_string = std::bitset<7>((IData)id).to_string();
+    const auto *const found = std::find(possible_ids.begin(), possible_ids.end(), id);
+    assert_or_err(found != possible_ids.end(), Error{.message = std::format("Unknown {}: '0b{}'", id_name, bit_string)});
 }
 
-struct Instruction {
+struct InstructionBits {
     IData bits{};
 
-    Instruction() = default;
-    Instruction(IData bits) : bits(bits) {}
+    InstructionBits() = default;
+    InstructionBits(IData bits) : bits(bits) {}
 
     operator IData() {
         return bits;
     }
 
-    constexpr auto set_opcode(IData opcode) -> Instruction& {
-        validate_instr_id("opcode", opcode, opcode::opcodes);
-        bits |= opcode;
+    constexpr auto set_opcode(Opcode opcode) -> InstructionBits& {
+        validate_instr_id("opcode", opcode, opcodes);
+        bits |= (IData)opcode;
         return *this;
     }
 
-    constexpr auto set_rd(IData rd) -> Instruction& {
+    constexpr auto set_rd(Register rd) -> InstructionBits& {
         validate_register(rd);
-        bits |= rd << 7u;
+        bits |= rd.bits() << 7u;
         return *this;
     }
 
-    constexpr auto set_funct3(IData funct3) -> Instruction& {
-        validate_instr_id("funct3", funct3, funct3::funct3s);
-        bits |= funct3 << 12u;
+    constexpr auto set_funct3(Funct3 funct3) -> InstructionBits& {
+        validate_instr_id("funct3", funct3, funct3s);
+        bits |= (IData)funct3 << 12u;
         return *this;
     }
 
-    constexpr auto set_rs1(IData rs1) -> Instruction& {
+    constexpr auto set_rs1(Register rs1) -> InstructionBits& {
         validate_register(rs1);
-        bits |= rs1 << 15u;
+        bits |= rs1.bits() << 15u;
         return *this;
     }
 
-    constexpr auto set_rs2(IData rs2) -> Instruction& {
+    constexpr auto set_rs2(Register rs2) -> InstructionBits& {
         validate_register(rs2);
-        bits |= rs2 << 20u;
+        bits |= rs2.bits() << 20u;
         return *this;
     }
 
-    constexpr auto set_imm12(IData imm) -> Instruction& {
-        assert_or_err(imm < 4096, std::format("Invalid immediate: '{}', expected 12-bit.", imm));
+    constexpr auto set_imm12(IData imm) -> InstructionBits& {
+        assert_or_err(imm < 4096, Error{.message = std::format("Invalid immediate: '{}', expected 12-bit.", imm)});
         bits |= imm << 20u;
         return *this;
     }
 
-    constexpr auto set_funct7(IData funct7) -> Instruction& {
-        validate_instr_id("funct7", funct7, funct7::funct7s);
-        bits |= funct7 << 25u;
+    constexpr auto set_funct7(Funct7 funct7) -> InstructionBits& {
+        validate_instr_id("funct7", funct7, funct7s);
+        bits |= (IData)funct7 << 25u;
         return *this;
     }
 
-    constexpr auto set_imm20(IData imm20) -> Instruction& {
-        assert_or_err(imm20 < 1048576, std::format("Invalid immediate: '{}', expected 20-bit.", imm20));
+    constexpr auto set_imm20(IData imm20) -> InstructionBits& {
+        assert_or_err(imm20 < 1048576, Error{.message = std::format("Invalid immediate: '{}', expected 20-bit.", imm20)});
         bits |= imm20 << 12u;
         return *this;
     }
 
-    constexpr auto set_imm21(IData imm21) -> Instruction& {
-        assert_or_err(imm21 < 2097152, std::format("Invalid immediate: '{}', expected 21-bit.", imm21));
+    constexpr auto set_imm21(IData imm21) -> InstructionBits& {
+        assert_or_err(imm21 < 2097152, Error{.message = std::format("Invalid immediate: '{}', expected 21-bit.", imm21)});
 
         auto imm_j = std::bitset<32>{};
         auto imm = std::bitset<21>(imm21);
@@ -323,12 +416,12 @@ struct Instruction {
         return *this;
     }
 
-    constexpr auto make_scalar() -> Instruction& {
+    constexpr auto make_scalar() -> InstructionBits& {
         bits |= (IData)1 << 6u;
         return *this;
     }
 
-    constexpr auto make_vector() -> Instruction& {
+    constexpr auto make_vector() -> InstructionBits& {
         bits &= ~((IData)1 << 6u);
         return *this;
     }
@@ -337,155 +430,487 @@ struct Instruction {
 namespace instructions {
 
 // Helper functions for creating instructions
-constexpr auto create_utype_instruction(IData opcode, IData rd, IData imm20) -> Instruction {
-    return Instruction().set_opcode(opcode).set_rd(rd).set_imm20(imm20);
+constexpr auto create_utype_instruction(Opcode opcode, Register rd, IData imm20) -> InstructionBits {
+    return InstructionBits().set_opcode(opcode).set_rd(rd).set_imm20(imm20);
 }
-constexpr auto create_itype_instruction(IData opcode, IData funct3, IData rd, IData rs1, IData imm12) -> Instruction {
-    return Instruction().set_opcode(opcode).set_funct3(funct3).set_rd(rd).set_rs1(rs1).set_imm12(imm12);
+constexpr auto create_itype_instruction(Opcode opcode, Funct3 funct3, Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return InstructionBits().set_opcode(opcode).set_funct3(funct3).set_rd(rd).set_rs1(rs1).set_imm12(imm12);
 }
-constexpr auto create_itype_shift_instruction(IData opcode, IData funct3, IData funct7, IData rd, IData rs1, IData imm12) -> Instruction {
-    assert_or_err(imm12 < 32, std::format("Invalid immediate: '{}', expected 5-bit immediate in shift instruction.", imm12));
-    return Instruction().set_opcode(opcode).set_funct3(funct3).set_funct7(funct7).set_rd(rd).set_rs1(rs1).set_imm12(imm12);
+constexpr auto create_itype_shift_instruction(Opcode opcode, Funct3 funct3, Funct7 funct7, Register rd, Register rs1, IData imm12) -> InstructionBits {
+    assert_or_err(imm12 < 32, Error{.message = std::format("Invalid immediate: '{}', expected 5-bit immediate in shift instruction.", imm12)});
+    return InstructionBits().set_opcode(opcode).set_funct3(funct3).set_funct7(funct7).set_rd(rd).set_rs1(rs1).set_imm12(imm12);
 }
-constexpr auto create_rtype_instruction(IData opcode, IData funct3, IData funct7, IData rd, IData rs1, IData rs2) -> Instruction {
-    return Instruction().set_opcode(opcode).set_funct3(funct3).set_funct7(funct7).set_rd(rd).set_rs1(rs1).set_rs2(rs2);
+constexpr auto create_rtype_instruction(Opcode opcode, Funct3 funct3, Funct7 funct7, Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return InstructionBits().set_opcode(opcode).set_funct3(funct3).set_funct7(funct7).set_rd(rd).set_rs1(rs1).set_rs2(rs2);
 }
-constexpr auto create_jtype_instruction(IData opcode, IData rd, IData imm21) -> Instruction {
-    return Instruction().set_opcode(opcode).set_rd(rd).set_imm21(imm21);
+constexpr auto create_jtype_instruction(Opcode opcode, Register rd, IData imm21) -> InstructionBits {
+    return InstructionBits().set_opcode(opcode).set_rd(rd).set_imm21(imm21);
 }
-constexpr auto create_btype_instruction(IData opcode, IData funct3, IData rs1, IData rs2, IData imm12) -> Instruction {
-    assert_or_err(false, "Not yet implemented (need to properly set the immediate)");
-    return Instruction().set_opcode(opcode).set_funct3(funct3).set_rs1(rs1).set_rs2(rs2);
+constexpr auto create_btype_instruction(Opcode opcode, Funct3 funct3, Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return InstructionBits{};
+    /*return Instruction().set_opcode(opcode).set_funct3(funct3).set_rs1(rs1).set_rs2(rs2);*/
 }
-constexpr auto create_stype_instruction(IData opcode, IData funct3, IData rs1, IData rs2, IData imm12) -> Instruction {
-    return Instruction().set_opcode(opcode).set_funct3(funct3).set_rs1(rs1).set_rs2(rs2).set_imm12(imm12);
+constexpr auto create_stype_instruction(Opcode opcode, Funct3 funct3, Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return InstructionBits().set_opcode(opcode).set_funct3(funct3).set_rs1(rs1).set_rs2(rs2).set_imm12(imm12);
 }
 
 // Instruction constructors
 
 // U-type
-constexpr auto lui(IData rd, IData imm20) -> Instruction {
-    return create_utype_instruction(opcode::LUI, rd, imm20);
+constexpr auto lui(Register rd, IData imm20) -> InstructionBits {
+    return create_utype_instruction(Opcode::LUI, rd, imm20);
 }
-constexpr auto auipc(IData rd, IData imm20) -> Instruction {
-    return create_utype_instruction(opcode::AUIPC, rd, imm20);
+constexpr auto auipc(Register rd, IData imm20) -> InstructionBits {
+    return create_utype_instruction(Opcode::AUIPC, rd, imm20);
 }
 
 // I-type
-constexpr auto addi(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::ITYPE, funct3::ADDI, rd, rs1, imm12);
+constexpr auto addi(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::ITYPE, Funct3::ADDI, rd, rs1, imm12);
 }
-constexpr auto slti(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::ITYPE, funct3::SLTI, rd, rs1, imm12);
+constexpr auto slti(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::ITYPE, Funct3::SLTI, rd, rs1, imm12);
 }
-constexpr auto xori(IData rd, IData rs1, IData imm) -> Instruction {
-    return create_itype_instruction(opcode::ITYPE, funct3::XORI,  rd, rs1, imm);
+constexpr auto xori(Register rd, Register rs1, IData imm) -> InstructionBits {
+    return create_itype_instruction(Opcode::ITYPE, Funct3::XORI,  rd, rs1, imm);
 }
-constexpr auto ori(IData rd, IData rs1, IData imm) -> Instruction {
-    return create_itype_instruction(opcode::ITYPE, funct3::ORI, rd, rs1, imm);
+constexpr auto ori(Register rd, Register rs1, IData imm) -> InstructionBits {
+    return create_itype_instruction(Opcode::ITYPE, Funct3::ORI, rd, rs1, imm);
 }
-constexpr auto andi(IData rd, IData rs1, IData imm) -> Instruction {
-    return create_itype_instruction(opcode::ITYPE, funct3::ANDI, rd, rs1, imm);
+constexpr auto andi(Register rd, Register rs1, IData imm) -> InstructionBits {
+    return create_itype_instruction(Opcode::ITYPE, Funct3::ANDI, rd, rs1, imm);
 }
-constexpr auto slli(IData rd, IData rs1, IData imm) -> Instruction {
-    return create_itype_shift_instruction(opcode::ITYPE, funct3::SLLI, funct7::SLLI, rd, rs1, imm);
+constexpr auto slli(Register rd, Register rs1, IData imm) -> InstructionBits {
+    return create_itype_shift_instruction(Opcode::ITYPE, Funct3::SLLI, Funct7::SLLI, rd, rs1, imm);
 }
-constexpr auto srli(IData rd, IData rs1, IData imm) -> Instruction {
-    return create_itype_shift_instruction(opcode::ITYPE, funct3::SRLI, funct7::SRLI, rd, rs1, imm);
+constexpr auto srli(Register rd, Register rs1, IData imm) -> InstructionBits {
+    return create_itype_shift_instruction(Opcode::ITYPE, Funct3::SRLI, Funct7::SRLI, rd, rs1, imm);
 }
-constexpr auto srai(IData rd, IData rs1, IData imm) -> Instruction {
-    return create_itype_shift_instruction(opcode::ITYPE, funct3::SRAI, funct7::SRAI, rd, rs1, imm);
+constexpr auto srai(Register rd, Register rs1, IData imm) -> InstructionBits {
+    return create_itype_shift_instruction(Opcode::ITYPE, Funct3::SRAI, Funct7::SRAI, rd, rs1, imm);
 }
 
 // R-type
-constexpr auto add(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::ADD, funct7::ADD, rd, rs1, rs2);
+constexpr auto add(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::ADD, Funct7::ADD, rd, rs1, rs2);
 }
-constexpr auto sub(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::SUB, funct7::SUB, rd, rs1, rs2);
+constexpr auto sub(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::SUB, Funct7::SUB, rd, rs1, rs2);
 }
-constexpr auto sll(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::SLL, funct7::SLL, rd, rs1, rs2);
+constexpr auto sll(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::SLL, Funct7::SLL, rd, rs1, rs2);
 }
-constexpr auto slt(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::SLT, funct7::SLT, rd, rs1, rs2);
+constexpr auto slt(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::SLT, Funct7::SLT, rd, rs1, rs2);
 }
-constexpr auto xor_(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::XOR, funct7::XOR, rd, rs1, rs2);
+constexpr auto xor_(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::XOR, Funct7::XOR, rd, rs1, rs2);
 }
-constexpr auto srl(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::SRL, funct7::SRL, rd, rs1, rs2);
+constexpr auto srl(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::SRL, Funct7::SRL, rd, rs1, rs2);
 }
-constexpr auto sra(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::SRA, funct7::SRA, rd, rs1, rs2);
+constexpr auto sra(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::SRA, Funct7::SRA, rd, rs1, rs2);
 }
-constexpr auto or_(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::OR, funct7::OR, rd, rs1, rs2);
+constexpr auto or_(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::OR, Funct7::OR, rd, rs1, rs2);
 }
-constexpr auto and_(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::RTYPE, funct3::AND, funct7::AND, rd, rs1, rs2);
+constexpr auto and_(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::RTYPE, Funct3::AND, Funct7::AND, rd, rs1, rs2);
 }
 
 // Load
-constexpr auto lb(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::LOAD, funct3::LB, rd, rs1, imm12);
+constexpr auto lb(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::LOAD, Funct3::LB, rd, rs1, imm12);
 }
-constexpr auto lh(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::LOAD, funct3::LH, rd, rs1, imm12);
+constexpr auto lh(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::LOAD, Funct3::LH, rd, rs1, imm12);
 }
-constexpr auto lw(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::LOAD, funct3::LW, rd, rs1, imm12);
+constexpr auto lw(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::LOAD, Funct3::LW, rd, rs1, imm12);
 }
 
 // Store
-constexpr auto sb(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_stype_instruction(opcode::STYPE, funct3::SB, rs1, rs2, imm12);
+constexpr auto sb(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_stype_instruction(Opcode::STYPE, Funct3::SB, rs1, rs2, imm12);
 }
-constexpr auto sh(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_stype_instruction(opcode::STYPE, funct3::SH, rs1, rs2, imm12);
+constexpr auto sh(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_stype_instruction(Opcode::STYPE, Funct3::SH, rs1, rs2, imm12);
 }
-constexpr auto sw(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_stype_instruction(opcode::STYPE, funct3::SW, rs1, rs2, imm12);
+constexpr auto sw(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_stype_instruction(Opcode::STYPE, Funct3::SW, rs1, rs2, imm12);
 }
 
 // J-type
-constexpr auto jal(IData rd, IData imm21) -> Instruction {
-    return create_jtype_instruction(opcode::JTYPE, rd, imm21);
+constexpr auto jal(Register rd, IData imm21) -> InstructionBits {
+    return create_jtype_instruction(Opcode::JTYPE, rd, imm21);
 }
 
 // JALR
-constexpr auto jalr(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::JALR, funct3::JALR, rd, rs1, imm12);
+constexpr auto jalr(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::JALR, Funct3::JALR, rd, rs1, imm12);
 }
 
 // B-type
-constexpr auto beq(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_btype_instruction(opcode::BTYPE, funct3::BEQ, rs1, rs2, imm12);
+constexpr auto beq(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_btype_instruction(Opcode::BTYPE, Funct3::BEQ, rs1, rs2, imm12);
 }
-constexpr auto bne(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_btype_instruction(opcode::BTYPE, funct3::BNE, rs1, rs2, imm12);
+constexpr auto bne(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_btype_instruction(Opcode::BTYPE, Funct3::BNE, rs1, rs2, imm12);
 }
-constexpr auto blt(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_btype_instruction(opcode::BTYPE, funct3::BLT, rs1, rs2, imm12);
+constexpr auto blt(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_btype_instruction(Opcode::BTYPE, Funct3::BLT, rs1, rs2, imm12);
 }
-constexpr auto bge(IData rs1, IData rs2, IData imm12) -> Instruction {
-    return create_btype_instruction(opcode::BTYPE, funct3::BGE, rs1, rs2, imm12);
+constexpr auto bge(Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    return create_btype_instruction(Opcode::BTYPE, Funct3::BGE, rs1, rs2, imm12);
 }
 
 // Custom opcodes
-constexpr auto halt() -> Instruction {
-    return Instruction().set_opcode(opcode::HALT);
+constexpr auto halt() -> InstructionBits {
+    return InstructionBits().set_opcode(Opcode::HALT);
 }
-constexpr auto sx_slt(IData rd, IData rs1, IData rs2) -> Instruction {
-    return create_rtype_instruction(opcode::SX_SLT, funct3::SLT, funct7::SLT, rd, rs1, rs2);
+constexpr auto sx_slt(Register rd, Register rs1, Register rs2) -> InstructionBits {
+    return create_rtype_instruction(Opcode::SX_SLT, Funct3::SLT, Funct7::SLT, rd, rs1, rs2);
 }
-constexpr auto sx_slti(IData rd, IData rs1, IData imm12) -> Instruction {
-    return create_itype_instruction(opcode::SX_SLTI, funct3::SLTI, rd, rs1, imm12);
+constexpr auto sx_slti(Register rd, Register rs1, IData imm12) -> InstructionBits {
+    return create_itype_instruction(Opcode::SX_SLTI, Funct3::SLTI, rd, rs1, imm12);
 }
-
-
-
-
 }
 
+struct InstructionDeterminant {
+    Opcode opcode;
+    Funct3 funct3;
+    Funct7 funct7;
+};
+
+enum class MnemonicName {
+    // U-type
+    LUI,
+    AUIPC,
+    // I-type arithmetic
+    ADDI,
+    SLTI,
+    XORI,
+    ORI,
+    ANDI,
+    SLLI,
+    SRLI,
+    SRAI,
+    // R-type
+    ADD,
+    SUB,
+    SLL,
+    SLT,
+    XOR,
+    SRL,
+    SRA,
+    OR,
+    AND,
+    // Load
+    LB,
+    LH,
+    LW,
+    // Store
+    SB,
+    SH,
+    SW,
+    // J-type
+    JAL,
+    // I-type jumps
+    JALR,
+    // B-type
+    BEQ,
+    BNE,
+    BLT,
+    BGE,
+    // Halt
+    HALT,
+    // SX-type
+    SX_SLT,
+    SX_SLTI
+};
+
+constexpr auto str_to_mnemonic_name(const std::string_view name) -> std::optional<MnemonicName> {
+    if (name == "lui") {
+        return MnemonicName::LUI;
+    } else if (name == "auipc") {
+        return MnemonicName::AUIPC;
+    } else if (name == "addi") {
+        return MnemonicName::ADDI;
+    } else if (name == "slti") {
+        return MnemonicName::SLTI;
+    } else if (name == "xori") {
+        return MnemonicName::XORI;
+    } else if (name == "ori") {
+        return MnemonicName::ORI;
+    } else if (name == "andi") {
+        return MnemonicName::ANDI;
+    } else if (name == "slli") {
+        return MnemonicName::SLLI;
+    } else if (name == "srli") {
+        return MnemonicName::SRLI;
+    } else if (name == "srai") {
+        return MnemonicName::SRAI;
+    } else if (name == "add") {
+        return MnemonicName::ADD;
+    } else if (name == "sub") {
+        return MnemonicName::SUB;
+    } else if (name == "sll") {
+        return MnemonicName::SLL;
+    } else if (name == "slt") {
+        return MnemonicName::SLT;
+    } else if (name == "xor") {
+        return MnemonicName::XOR;
+    } else if (name == "srl") {
+        return MnemonicName::SRL;
+    } else if (name == "sra") {
+        return MnemonicName::SRA;
+    } else if (name == "or") {
+        return MnemonicName::OR;
+    } else if (name == "and") {
+        return MnemonicName::AND;
+    } else if (name == "lb") {
+        return MnemonicName::LB;
+    } else if (name == "lh") {
+        return MnemonicName::LH;
+    } else if (name == "lw") {
+        return MnemonicName::LW;
+    } else if (name == "sb") {
+        return MnemonicName::SB;
+    } else if (name == "sh") {
+        return MnemonicName::SH;
+    } else if (name == "sw") {
+        return MnemonicName::SW;
+    } else if (name == "jal") {
+        return MnemonicName::JAL;
+    } else if (name == "jalr") {
+        return MnemonicName::JALR;
+    } else if (name == "beq") {
+        return MnemonicName::BEQ;
+    } else if (name == "bne") {
+        return MnemonicName::BNE;
+    } else if (name == "blt") {
+        return MnemonicName::BLT;
+    } else if (name == "bge") {
+        return MnemonicName::BGE;
+    } else if (name == "halt") {
+        return MnemonicName::HALT;
+    } else if (name == "sx.slt") {
+        return MnemonicName::SX_SLT;
+    } else if (name == "sx.slti") {
+        return MnemonicName::SX_SLTI;
+    }
+
+    return std::nullopt;
+}
+
+constexpr auto to_string(const MnemonicName name) -> std::string_view {
+    switch (name) {
+    case MnemonicName::LUI:
+        return "lui";
+    case MnemonicName::AUIPC:
+        return "auipc";
+    case MnemonicName::ADDI:
+        return "addi";
+    case MnemonicName::SLTI:
+        return "slti";
+    case MnemonicName::XORI:
+        return "xori";
+    case MnemonicName::ORI:
+        return "ori";
+    case MnemonicName::ANDI:
+        return "andi";
+    case MnemonicName::SLLI:
+        return "slli";
+    case MnemonicName::SRLI:
+        return "srli";
+    case MnemonicName::SRAI:
+        return "srai";
+    case MnemonicName::ADD:
+        return "add";
+    case MnemonicName::SUB:
+        return "sub";
+    case MnemonicName::SLL:
+        return "sll";
+    case MnemonicName::SLT:
+        return "slt";
+    case MnemonicName::XOR:
+        return "xor";
+    case MnemonicName::SRL:
+        return "srl";
+    case MnemonicName::SRA:
+        return "sra";
+    case MnemonicName::OR:
+        return "or";
+    case MnemonicName::AND:
+        return "and";
+    case MnemonicName::LB:
+        return "lb";
+    case MnemonicName::LH:
+        return "lh";
+    case MnemonicName::LW:
+        return "lw";
+    case MnemonicName::SB:
+        return "sb";
+    case MnemonicName::SH:
+        return "sh";
+    case MnemonicName::SW:
+        return "sw";
+    case MnemonicName::JAL:
+        return "jal";
+    case MnemonicName::JALR:
+        return "jalr";
+    case MnemonicName::BEQ:
+        return "beq";
+    case MnemonicName::BNE:
+        return "bne";
+    case MnemonicName::BLT:
+        return "blt";
+    case MnemonicName::BGE:
+        return "bge";
+    case MnemonicName::HALT:
+        return "halt";
+    case MnemonicName::SX_SLT:
+        return "sx.slt";
+    case MnemonicName::SX_SLTI:
+        return "sx.slti";
+    }
+
+    return "unknown";
+}
+
+struct Mnemonic {
+    Mnemonic(MnemonicName name, bool is_scalar) : name(name), has_s_prefix(is_scalar) {}
+
+    [[nodiscard]] auto get_name() const -> MnemonicName {
+        return name;
+    }
+
+    [[nodiscard]] auto to_str() const -> std::string {
+        return std::format("{}{}", is_scalar() ? "s." : "", to_string(name));
+    }
+
+    [[nodiscard]] auto is_scalar() const -> bool {
+        return has_s_prefix || name == MnemonicName::SX_SLT || name == MnemonicName::SX_SLTI;
+    }
+
+    auto operator==(const Mnemonic &other) const -> bool {
+        return name == other.name && is_scalar() == other.is_scalar();
+    }
+
+    auto operator!=(const Mnemonic &other) const -> bool = default;
+private:
+    MnemonicName name;
+    bool has_s_prefix;
+};
+
+constexpr auto str_to_mnemonic(std::string_view str) -> std::optional<Mnemonic> {
+    auto is_scalar = str.starts_with("s.");
+    if (is_scalar) {
+        str.remove_prefix(2);
+    }
+
+    auto name = str_to_mnemonic_name(str);
+    if (!name) {
+        return std::nullopt;
+    }
+
+    return Mnemonic(*name, is_scalar);
+}
+
+constexpr auto name_to_determinant(MnemonicName name) -> InstructionDeterminant {
+    switch (name) {
+        // U-type
+        case MnemonicName::LUI:
+            return {Opcode::LUI, {}, {}};
+        case MnemonicName::AUIPC:
+            return {Opcode::AUIPC, {}, {}};
+        // I-type arithmetic
+        case MnemonicName::ADDI:
+            return {Opcode::ITYPE, Funct3::ADDI, {}};
+        case MnemonicName::SLTI:
+            return {Opcode::ITYPE, Funct3::SLTI, {}};
+        case MnemonicName::XORI:
+            return {Opcode::ITYPE, Funct3::XORI, {}};
+        case MnemonicName::ORI:
+            return {Opcode::ITYPE, Funct3::ORI, {}};
+        case MnemonicName::ANDI:
+            return {Opcode::ITYPE, Funct3::ANDI, {}};
+        case MnemonicName::SLLI:
+            return {Opcode::ITYPE, Funct3::SLLI, Funct7::SLLI};
+        case MnemonicName::SRLI:
+            return {Opcode::ITYPE, Funct3::SRLI, Funct7::SRLI};
+        case MnemonicName::SRAI:
+            return {Opcode::ITYPE, Funct3::SRAI, Funct7::SRAI};
+        // R-type
+        case MnemonicName::ADD:
+            return {Opcode::RTYPE, Funct3::ADD, Funct7::ADD};
+        case MnemonicName::SUB:
+            return {Opcode::RTYPE, Funct3::SUB, Funct7::SUB};
+        case MnemonicName::SLL:
+            return {Opcode::RTYPE, Funct3::SLL, Funct7::SLL};
+        case MnemonicName::SLT:
+            return {Opcode::RTYPE, Funct3::SLT, Funct7::SLT};
+        case MnemonicName::XOR:
+            return {Opcode::RTYPE, Funct3::XOR, Funct7::XOR};
+        case MnemonicName::SRL:
+            return {Opcode::RTYPE, Funct3::SRL, Funct7::SRL};
+        case MnemonicName::SRA:
+            return {Opcode::RTYPE, Funct3::SRA, Funct7::SRA};
+        case MnemonicName::OR:
+            return {Opcode::RTYPE, Funct3::OR, Funct7::OR};
+        case MnemonicName::AND:
+            return {Opcode::RTYPE, Funct3::AND, Funct7::AND};
+        // Load
+        case MnemonicName::LB:
+            return {Opcode::LOAD, Funct3::LB, {}};
+        case MnemonicName::LH:
+            return {Opcode::LOAD, Funct3::LH, {}};
+        case MnemonicName::LW:
+            return {Opcode::LOAD, Funct3::LW, {}};
+        // Store
+        case MnemonicName::SB:
+            return {Opcode::STYPE, Funct3::SB, {}};
+        case MnemonicName::SH:
+            return {Opcode::STYPE, Funct3::SH, {}};
+        case MnemonicName::SW:
+            return {Opcode::STYPE, Funct3::SW, {}};
+        // J-type
+        case MnemonicName::JAL:
+            return {Opcode::JTYPE, {}, {}};
+        // I-type jumps
+        case MnemonicName::JALR:
+            return {Opcode::JALR, Funct3::JALR, {}};
+        // B-type
+        case MnemonicName::BEQ:
+            return {Opcode::BTYPE, Funct3::BEQ, {}};
+        case MnemonicName::BNE:
+            return {Opcode::BTYPE, Funct3::BNE, {}};
+        case MnemonicName::BLT:
+            return {Opcode::BTYPE, Funct3::BLT, {}};
+        case MnemonicName::BGE:
+            return {Opcode::BTYPE, Funct3::BGE, {}};
+        // Halt
+        case MnemonicName::HALT:
+            return {Opcode::HALT, {}, {}};
+        // SX-type
+        case MnemonicName::SX_SLT:
+            return {Opcode::SX_SLT, Funct3::SLT, Funct7::SLT};
+        case MnemonicName::SX_SLTI:
+            return {Opcode::SX_SLTI, Funct3::SLTI, {}};
+    }
+
+    std::unreachable();
+}
+
+}
+
+// s suffix for scalar registers
+inline sim::Register operator ""_s(unsigned long long reg) {
+    return sim::Register{.register_number = (IData)reg, .type = sim::RegisterType::SCALAR};
+}
+
+// x suffix for vector registers
+inline sim::Register operator ""_x(unsigned long long reg) {
+    return sim::Register{.register_number = (IData)reg, .type = sim::RegisterType::VECTOR};
 }

@@ -41,23 +41,32 @@ void Lexer::trim_whitespace() {
     }
 }
 
-auto Lexer::make_error(const std::string_view message, std::optional<uint32_t> col) -> Error {
+auto Lexer::make_error(std::string&& message, std::optional<uint32_t> col) -> Error {
     auto column_number_loc = col.value_or(this->column_number);
-    return std::format("Error:{}: {}.", column_number_loc, message);
+    return Error{.message = std::string{message}, .column = column_number_loc, .line = 0};
+}
+
+auto Lexer::make_error(sim::Error&& error, std::optional<uint32_t> col) -> Error {
+    auto column_number_loc = col.value_or(this->column_number);
+    return Error{.message = std::move(error.message), .column = column_number_loc, .line = error.line};
 }
 
 auto Lexer::parse_directive() -> std::expected<Token, Error> {
-    const auto keyword = chop_while(is_alphabetic);
+    const auto keyword = chop_while([](char c) {return !is_whitespace(c);});
 
-    if (keyword == "threads") {
-        return Token{ThreadsDirective{}, column_number};
+    if (keyword == "blocks") {
+        return Token{token::BlocksDirective{}, column_number};
     }
 
     if (keyword == "warps") {
-        return Token{WarpsDirective{}, column_number};
+        return Token{token::WarpsDirective{}, column_number};
     }
 
-    return std::unexpected(make_error(std::format("Unexpected keyword '{}'", keyword)));
+    if (keyword.empty()) {
+        return std::unexpected(make_error(std::format("Unexpected whitespace after '.',  expected a directive name after '.'")));
+    }
+
+    return std::unexpected(make_error(std::format("Unknown directive '.{}'", keyword)));
 }
 
 auto Lexer::parse_number() -> std::expected<Token, Error> {
@@ -66,30 +75,30 @@ auto Lexer::parse_number() -> std::expected<Token, Error> {
     auto number = parse_num(source);
     if (!number.has_value()) {
         auto error = number.error();
-        return std::unexpected(make_error(error));
+        return std::unexpected(make_error(std::move(error)));
     }
     column_number += source_size_before - source.size();
-    return Token{Immediate{*number}, starting_col};
+    return Token{token::Immediate{*number}, starting_col};
 }
 
 auto Lexer::parse_keyword() -> std::expected<Token, Error> {
     const auto starting_col = column_number;
 
     auto word = chop_while([](char c) { return is_alphanumeric(c) || is_label_char(c) || c == '.' || c == ':'; });
-    const auto opcode = sim::opcode::str_to_opcode(word);
+    const auto opcode = sim::str_to_mnemonic(word);
 
     std::println("word: '{}', rest: '{}'", word, source);
 
     // 1. Check if it's an opcode
     if (opcode.has_value()) {
-        return Token{Mnemonic{.mnemonic = *opcode}, starting_col};
+        return Token{token::Mnemonic{.mnemonic = *opcode}, starting_col};
     }
 
     // 2. Check if it's a label
     if (word.back() == ':') {
         word.remove_suffix(1);
         if (str_check_predicate(word, is_label_char)) {
-            return Token{Label{.name = word}, starting_col};
+            return Token{token::Label{.name = word}, starting_col};
         }
     }
 
@@ -98,7 +107,7 @@ auto Lexer::parse_keyword() -> std::expected<Token, Error> {
     if (word[0] == 'x' || word[0] == 's' || word == "pc") {
         auto reg = str_to_reg(word);
         if (reg.has_value()) {
-            return Token{Register{.register_data = *reg}, starting_col};
+            return Token{token::Register{.register_data = *reg}, starting_col};
         } else {
             reg_error = reg.error();
         }
@@ -106,12 +115,12 @@ auto Lexer::parse_keyword() -> std::expected<Token, Error> {
 
     // 4. Check if it's a label reference
     if (str_check_predicate(word, is_label_char)) {
-        return Token{LabelRef{.label_name = word}, starting_col};
+        return Token{token::LabelRef{.label_name = word}, starting_col};
     }
 
     // 5. If none of the above, return an error
     if (reg_error) {
-        return std::unexpected(make_error(reg_error.value(), starting_col));
+        return std::unexpected(make_error(std::move(reg_error.value()), starting_col));
     }
 
     return std::unexpected(make_error(std::format("Unexpected keyword '{}'", word), starting_col));
@@ -141,16 +150,14 @@ auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
 
     switch (c) {
         case '(':
-            return Token{Lparen{}, first_char_column};
+            return Token{token::Lparen{}, first_char_column};
         case ')':
-            return Token{Rparen{}, first_char_column};
+            return Token{token::Rparen{}, first_char_column};
         case ',':
-            return Token{Comma{}, first_char_column};
+            return Token{token::Comma{}, first_char_column};
         case '.':
             return parse_directive();
     }
-
-
 
     return std::unexpected(make_error(std::format("Unexpected character '{}'", c), first_char_column));
 }

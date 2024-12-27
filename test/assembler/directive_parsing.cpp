@@ -1,21 +1,22 @@
 #include "lexer.hpp"
+#include "parser.hpp"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
 TEST_CASE("Lexing directives") {
     std::string_view input;
 
-    SUBCASE("Threads Directive: correct input") {
-        input = ".threads";
+    SUBCASE("Blocks Directive: correct input") {
+        input = ".blocks";
         const auto [tokens, errors] = as::collect_tokens(input);
 
         REQUIRE_EQ(tokens.size(), 1);
         REQUIRE_EQ(errors.size(), 0);
-        REQUIRE(tokens[0].is_of_type<as::ThreadsDirective>());
+        REQUIRE(tokens[0].is_of_type<as::token::BlocksDirective>());
     }
 
-    SUBCASE("Threads Directive: incorrect input") {
-        input = ".thread";
+    SUBCASE("Blocks Directive: incorrect input") {
+        input = ".block";
         const auto [tokens, errors] = as::collect_tokens(input);
 
         REQUIRE_EQ(tokens.size(), 0);
@@ -28,7 +29,7 @@ TEST_CASE("Lexing directives") {
 
         REQUIRE_EQ(tokens.size(), 1);
         REQUIRE_EQ(errors.size(), 0);
-        REQUIRE(tokens[0].is_of_type<as::WarpsDirective>());
+        REQUIRE(tokens[0].is_of_type<as::token::WarpsDirective>());
     }
 
     SUBCASE("Warps Directive: incorrect input") {
@@ -37,5 +38,90 @@ TEST_CASE("Lexing directives") {
 
         REQUIRE_EQ(tokens.size(), 0);
         REQUIRE_EQ(errors.size(), 1);
+    }
+}
+
+TEST_CASE("Parsing directives") {
+    std::string_view input;
+
+    SUBCASE("Blocks Directive: correct input") {
+        input = ".blocks 42";
+        const auto result = as::parse_line(input);
+
+        REQUIRE(result.has_value());
+        REQUIRE(std::holds_alternative<as::parser::BlocksDirective>(result.value()));
+        CHECK(std::get<as::parser::BlocksDirective>(result.value()).number == 42);
+    }
+
+    SUBCASE("Blocks Directive: incorrect input: no number provided") {
+        input = ".blocks";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Blocks Directive: incorrect input: negative number provided") {
+        input = ".blocks -42";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Blocks Directive: incorrect input: invalid number provided") {
+        input = ".blocks 42.0";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Warps Directive: correct input") {
+        input = ".warps 42";
+        const auto result = as::parse_line(input);
+
+        REQUIRE(result.has_value());
+        REQUIRE(std::holds_alternative<as::parser::WarpsDirective>(result.value()));
+        CHECK(std::get<as::parser::WarpsDirective>(result.value()).number == 42);
+    }
+
+    SUBCASE("Warps Directive: incorrect input: no number provided") {
+        input = ".warps";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Warps Directive: incorrect input: negative number provided") {
+        input = ".warps -42";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Warps Directive: incorrect input: invalid number provided") {
+        input = ".warps 42.0";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Invalid Directive: incorrect input") {
+        input = ".invalid";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Invalid Directive: Tokens after directive") {
+        input = ".blocks 42 .warps 42";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SUBCASE("Invalid Directive: Tokens before directive") {
+        input = "42 .blocks 42";
+        const auto result = as::parse_line(input);
+
+        REQUIRE_FALSE(result.has_value());
     }
 }

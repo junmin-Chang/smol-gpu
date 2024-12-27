@@ -15,12 +15,12 @@ auto main() -> int {
 
     data_mem.push_data(IData{1} << 2);
 
-    auto mask_instruction = lw(1, 0, 0).make_scalar();
-    auto jal_instruction = jal(8, 10);
+    auto mask_instruction = lw(1_x, 0_x, 0).make_scalar();
+    auto jal_instruction = jal(8_s, 10);
 
-    instruction_mem.push_instruction(addi(5, 1 ,0));
-    instruction_mem.push_instruction(sx_slti(1, 5, 5));
-    instruction_mem.push_instruction(sw(5, 1, 0));
+    instruction_mem.push_instruction(addi(5_x, 1_x ,0));
+    instruction_mem.push_instruction(sx_slti(1_x, 5_x, 5));
+    instruction_mem.push_instruction(sw(5_x, 1_x, 0));
     instruction_mem.push_instruction(halt());
 
     // Prepare kernel configuration

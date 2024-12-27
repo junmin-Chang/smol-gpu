@@ -63,7 +63,7 @@ struct InstructionMemory {
         }
     }
 
-    void push_instruction(Instruction instruction) {
+    void push_instruction(InstructionBits instruction) {
         memory[stack_ptr++] = (IData)instruction;
     }
 

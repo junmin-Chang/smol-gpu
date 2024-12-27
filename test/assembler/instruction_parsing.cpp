@@ -7,45 +7,59 @@
 TEST_CASE("Lexing instructions") {
     std::string_view input;
 
-    const auto instructions = std::unordered_map<std::string_view, IData>{
-        {"lui", sim::opcode::LUI},
-        {"auipc", sim::opcode::AUIPC},
-        {"addi", sim::opcode::ITYPE},
-        {"add", sim::opcode::RTYPE},
-        {"sub", sim::opcode::RTYPE},
-        {"slli", sim::opcode::ITYPE},
-        {"slti", sim::opcode::ITYPE},
-        {"sltiu", sim::opcode::ITYPE},
-        {"xori", sim::opcode::ITYPE},
-        {"srli", sim::opcode::ITYPE},
-        {"srai", sim::opcode::ITYPE},
-        {"ori", sim::opcode::ITYPE},
-        {"andi", sim::opcode::ITYPE},
-        {"lb", sim::opcode::LOAD},
-        {"lh", sim::opcode::LOAD},
-        {"lw", sim::opcode::LOAD},
-        {"sb", sim::opcode::STYPE},
-        {"sh", sim::opcode::STYPE},
-        {"sw", sim::opcode::STYPE},
-        {"halt", sim::opcode::HALT},
-        {"sx.slt", sim::opcode::SX_SLT},
-        {"sx.slti", sim::opcode::SX_SLTI}
+    const auto instructions = std::unordered_map<std::string_view, sim::MnemonicName>{
+        {"lui", sim::MnemonicName::LUI},
+        {"auipc", sim::MnemonicName::AUIPC},
+        {"addi", sim::MnemonicName::ADDI},
+        {"slti", sim::MnemonicName::SLTI},
+        {"xori", sim::MnemonicName::XORI},
+        {"ori", sim::MnemonicName::ORI},
+        {"andi", sim::MnemonicName::ANDI},
+        {"slli", sim::MnemonicName::SLLI},
+        {"srli", sim::MnemonicName::SRLI},
+        {"srai", sim::MnemonicName::SRAI},
+        {"add", sim::MnemonicName::ADD},
+        {"sub", sim::MnemonicName::SUB},
+        {"sll", sim::MnemonicName::SLL},
+        {"slt", sim::MnemonicName::SLT},
+        {"xor", sim::MnemonicName::XOR},
+        {"srl", sim::MnemonicName::SRL},
+        {"sra", sim::MnemonicName::SRA},
+        {"or", sim::MnemonicName::OR},
+        {"and", sim::MnemonicName::AND},
+        {"lb", sim::MnemonicName::LB},
+        {"lh", sim::MnemonicName::LH},
+        {"lw", sim::MnemonicName::LW},
+        {"sb", sim::MnemonicName::SB},
+        {"sh", sim::MnemonicName::SH},
+        {"sw", sim::MnemonicName::SW},
+        {"jal", sim::MnemonicName::JAL},
+        {"jalr", sim::MnemonicName::JALR},
+        {"beq", sim::MnemonicName::BEQ},
+        {"bne", sim::MnemonicName::BNE},
+        {"blt", sim::MnemonicName::BLT},
+        {"bge", sim::MnemonicName::BGE},
+        {"halt", sim::MnemonicName::HALT},
+        {"sx.slt", sim::MnemonicName::SX_SLT},
+        {"sx.slti", sim::MnemonicName::SX_SLTI}
     };
 
-    for (const auto &[instr, opcode] : instructions) {
+    for (const auto &[instr, mnemonic_name] : instructions) {
         SUBCASE(std::format("Instruction: {}", instr).data()) {
             input = instr;
             const auto [tokens, errors] = as::collect_tokens(input);
 
             REQUIRE_EQ(tokens.size(), 1);
             REQUIRE_EQ(errors.size(), 0);
-            REQUIRE(tokens[0].is_of_type<as::Mnemonic>());
-            REQUIRE(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic == opcode);
-            REQUIRE(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic == sim::opcode::str_to_opcode(instr));
+            REQUIRE(tokens[0].is_of_type<as::token::Mnemonic>());
+            REQUIRE_EQ(std::get<as::token::Mnemonic>(tokens[0].token_type).mnemonic.get_name(), mnemonic_name);
+            auto m = sim::str_to_mnemonic(instr);
+            REQUIRE(m.has_value());
+            REQUIRE_EQ(std::get<as::token::Mnemonic>(tokens[0].token_type).mnemonic, *m);
         }
     }
 
-    for (const auto &[instr, opcode] : instructions) {
+    for (const auto &[instr, mnemonic_name] : instructions) {
         SUBCASE(std::format("Instruction: s.{}: Check scalar", instr).data()) {
             auto scalar_instr = std::format("s.{}", instr);
             std::println("Checking: {}", scalar_instr);
@@ -54,9 +68,11 @@ TEST_CASE("Lexing instructions") {
 
             REQUIRE_EQ(tokens.size(), 1);
             REQUIRE_EQ(errors.size(), 0);
-            REQUIRE(tokens[0].is_of_type<as::Mnemonic>());
-            REQUIRE(sim::opcode::is_scalar(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic));
-            REQUIRE(std::get<as::Mnemonic>(tokens[0].token_type).mnemonic == sim::opcode::str_to_opcode(scalar_instr));
+            REQUIRE(tokens[0].is_of_type<as::token::Mnemonic>());
+            REQUIRE(std::get<as::token::Mnemonic>(tokens[0].token_type).mnemonic.is_scalar());
+            auto m = sim::str_to_mnemonic(scalar_instr);
+            REQUIRE(m.has_value());
+            REQUIRE_EQ(std::get<as::token::Mnemonic>(tokens[0].token_type).mnemonic, *m);
 }
     }
 
@@ -79,8 +95,8 @@ TEST_CASE("Lexing labels") {
 
             REQUIRE_EQ(tokens.size(), 1);
             REQUIRE_EQ(errors.size(), 0);
-            REQUIRE(tokens[0].is_of_type<as::Label>());
-            REQUIRE(std::get<as::Label>(tokens[0].token_type).name == label.substr(0, label.size() - 1));
+            REQUIRE(tokens[0].is_of_type<as::token::Label>());
+            REQUIRE_EQ(std::get<as::token::Label>(tokens[0].token_type).name, label.substr(0, label.size() - 1));
         }
     }
 

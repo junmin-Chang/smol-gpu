@@ -2,6 +2,7 @@
 #include <fstream>
 #include <expected>
 #include <format>
+#include "parser.hpp"
 #include "parser_utils.hpp"
 #include "error.hpp"
 #include <vector>
@@ -37,17 +38,23 @@ auto trim_line(std::string_view& line) -> std::string_view {
 }
 
 auto main(int argc, char** argv) -> int {
-    std::string_view str = "label:";
+    std::string_view str = ".blocks 32.0";
 
-    const auto& [tokens, errors] = as::collect_tokens(str);
+    auto parsed_line = as::parse_line(str);
 
-    for (const auto &error : errors) {
-        std::println("Error: {}", error);
+    if (!parsed_line) {
+        std::println("Failed to parse:");
+        for (const auto &error : parsed_line.error()) {
+            sim::print_error(error);
+        }
+        return 0;
     }
 
-    for (const auto &token : tokens) {
-        std::println("{}", token.to_str());
-    }
+    const auto result = *parsed_line;
+
+    std::println("line: {}", as::parser::line_to_str(result));
+
+
 
     /*if (argc < 3) {*/
     /*    std::println("Usage: {} <input file> <output_file>", argv[0]);*/

@@ -57,7 +57,8 @@ class Lexer {
     auto peek() -> std::optional<char>;
     void trim_whitespace();
 
-    auto make_error(const std::string_view message, std::optional<uint32_t> col = {}) -> Error;
+    auto make_error(std::string&& message, std::optional<uint32_t> col = {}) -> Error;
+    auto make_error(sim::Error&& error, std::optional<uint32_t> col = {}) -> Error;
 
     auto parse_directive() -> std::expected<Token, Error>;
     auto parse_number() -> std::expected<Token, Error>;

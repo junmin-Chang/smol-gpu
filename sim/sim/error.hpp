@@ -7,17 +7,39 @@
 
 namespace sim {
 
-using Error = std::string;
+struct Error {
+    std::string message;
+    std::uint32_t column;
+    std::uint32_t line;
 
-inline void error(const std::string_view message) {
-    std::println(stderr, "Error: {}.", message);
+    auto with_column(std::uint32_t col) -> Error& {
+        column = col;
+        return *this;
+    }
+
+    auto with_line(std::uint32_t ln) -> Error& {
+        line = ln;
+        return *this;
+    }
+
+    auto operator==(const Error& other) const -> bool {
+        return message == other.message && column == other.column && line == other.line;
+    }
+
+    auto operator!=(const Error& other) const -> bool {
+        return !(*this == other);
+    }
+};
+
+inline void print_error(const Error& error) {
+    std::println(stderr, "Error:{}:{}: {}.", error.line, error.column, error.message);
     assert(false);
 }
 
 #ifndef NDEBUG
-inline void assert_or_err(bool condition, const std::string_view message) {
+inline void assert_or_err(bool condition, const Error& error) {
     if (!condition) {
-        error(message);
+        print_error(error);
     }
 }
 #else
