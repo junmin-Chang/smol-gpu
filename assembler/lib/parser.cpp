@@ -13,18 +13,21 @@ namespace as {
 
 namespace parser {
 
+auto to_string(const ImmediateOrLabelref &imm) -> std::string {
+    return std::visit(overloaded{
+                          [](const token::Immediate &imm) -> std::string { return std::to_string(imm.value); },
+                          [](const token::LabelRef &label) -> std::string { return std::string{label.label_name}; },
+                      },
+                      imm);
+}
+
 auto line_to_str(const parser::Line &line) -> std::string {
     return std::visit(overloaded{
+                          [](const parser::JustLabel &label) { return std::format("{}:", label.label.name); },
                           [](const parser::BlocksDirective &blocks) { return std::format(".blocks {}", blocks.number); },
                           [](const parser::WarpsDirective &warps) { return std::format(".warps {}", warps.number); },
                           [](const parser::Instruction &instruction) {
-                              std::string result;
-                              if (instruction.label.has_value()) {
-                                  result += std::format("{}: ", *instruction.label);
-                              }
-                              result += instruction.mnemonic.to_str();
-                              // TODO: Add operands
-                              return result;
+                              return instruction.to_str();
                           },
                       },
                       line);
@@ -65,6 +68,12 @@ void Parser::throw_unexpected_eos(std::string &&expected) {
     push_err(std::format("Unexpected end of stream: Expected {}", expected), 0);
 }
 
+constexpr auto is_itype_arithmetic(sim::MnemonicName name) -> bool {
+    return name == sim::MnemonicName::ADDI || name == sim::MnemonicName::SLTI || name == sim::MnemonicName::XORI ||
+           name == sim::MnemonicName::ORI || name == sim::MnemonicName::ANDI || name == sim::MnemonicName::SLLI ||
+           name == sim::MnemonicName::SRLI || name == sim::MnemonicName::SRAI;
+}
+
 auto Parser::parse_instruction() -> std::optional<Result> {
     auto mnemonic_token = *chop();
     auto mnemonic = mnemonic_token.as<token::Mnemonic>().mnemonic;
@@ -75,9 +84,9 @@ auto Parser::parse_instruction() -> std::optional<Result> {
     }
 
     // ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI
-    /*if () {*/
-    /*    return parse_itype_arithemtic_instruction(mnemonic);*/
-    /*}*/
+    if (is_itype_arithmetic(mnemonic.get_name())) {
+        return parse_itype_arithemtic_instruction(mnemonic);
+    }
 
     /**/
     /*if (sim::is_of_type(mnemonic, sim::Opcode::RTYPE)) {*/
@@ -94,11 +103,7 @@ auto Parser::parse_instruction() -> std::optional<Result> {
 
 // <opcode> <rd>, <rs1>, <imm12>
 auto Parser::parse_itype_arithemtic_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction> {
-    auto rd = expect<token::Register>();
-    if (!rd.has_value()) {
-        return std::nullopt;
-    }
-
+    EXPECT_OR_RETURN(rd, token::Register);
     EXPECT_OR_RETURN(comma1, token::Comma);
     EXPECT_OR_RETURN(rs1, token::Register);
     EXPECT_OR_RETURN(comma2, token::Comma);
@@ -107,10 +112,14 @@ auto Parser::parse_itype_arithemtic_instruction(sim::Mnemonic mnemonic) -> std::
     auto instruction = parser::Instruction{
         .label = {},
         .mnemonic = mnemonic,
-        /*.operands = {rd->as<token::Register>().number, rs1->as<token::Register>().number, imm12->as<Immediate>().value}*/
+        .operands = parser::ItypeOperands{
+            .rd = rd->as<token::Register>().register_data,
+            .rs1 = rs1->as<token::Register>().register_data,
+            .imm12 = imm12->as<token::Immediate>(),
+        },
     };
 
-    return parser::Instruction{.mnemonic = mnemonic};
+    return instruction;
 }
 
 
@@ -157,11 +166,17 @@ auto Parser::parse_line() -> std::optional<Result> {
         return parse_directive();
     }
 
-    std::optional<std::string> label = std::nullopt;
+    std::optional<as::token::Label> label = std::nullopt;
 
     if (token.is_of_type<token::Label>()) {
-        label = token.as<token::Label>().name;
+        label = token.as<token::Label>();
         chop();
+
+        if (tokens.empty()) {
+            return parser::JustLabel{.label = token.as<token::Label>()};
+        }
+
+        token = *peek();
     }
 
     if (token.is_of_type<token::Mnemonic>()) {
@@ -172,10 +187,16 @@ auto Parser::parse_line() -> std::optional<Result> {
         }
 
         std::get<parser::Instruction>(instruction.value()).label = label;
-        return parse_instruction();
+
+        if (tokens.empty()) {
+            return instruction;
+        }
+
+        push_err(std::format("Unexpected token: Expected end of line, instead found '{}'", peek()->to_str()), token.col);
+        return std::nullopt;
     }
 
-    push_err(std::format("Unexpected token: Expected end of line, instead found {}", token.to_str()), token.col);
+    push_err(std::format("Unexpected token: Expected mnemonic or directive, instead found '{}'", token.to_str()), token.col);
     return std::nullopt;
 }
 
@@ -185,9 +206,11 @@ auto parse_line(const std::string_view &json) -> std::expected<Parser::Result, s
         return std::unexpected(errors);
     }
 
+    std::print("{{ ");
     for (const auto &token : tokens) {
-        std::println("{}", token.to_str());
+        std::print("{}, ", token.to_str());
     }
+    std::println(" }}");
 
     Parser parser{tokens};
     auto result = parser.parse_line();

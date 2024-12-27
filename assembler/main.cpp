@@ -2,6 +2,7 @@
 #include <fstream>
 #include <expected>
 #include <format>
+#include "common.hpp"
 #include "parser.hpp"
 #include "parser_utils.hpp"
 #include "error.hpp"
@@ -28,85 +29,95 @@ auto get_lines(std::ifstream& file) -> std::vector<std::string> {
 }
 
 auto trim_line(std::string_view& line) -> std::string_view {
-    while (!line.empty() && std::isspace(line.front())) {
+    while (!line.empty() && as::is_whitespace(line.front())) {
         line.remove_prefix(1);
     }
-    while (!line.empty() && std::isspace(line.back())) {
+    while (!line.empty() && as::is_whitespace(line.front())) {
         line.remove_suffix(1);
     }
     return line;
 }
 
-auto main(int argc, char** argv) -> int {
-    std::string_view str = ".blocks 32.0";
+auto parse_program(const std::span<const std::string> lines) -> std::expected<as::parser::Program, std::vector<sim::Error>> {
+    auto program = as::parser::Program{};
+    auto errors = std::vector<sim::Error>{};
 
-    auto parsed_line = as::parse_line(str);
+    std::optional<std::uint32_t> block_count{};
+    std::optional<std::uint32_t> warp_count{};
 
-    if (!parsed_line) {
-        std::println("Failed to parse:");
-        for (const auto &error : parsed_line.error()) {
-            sim::print_error(error);
+    auto line_nr = 0u;
+    auto instr_count = 0u;
+
+    for(const auto& line : lines) {
+        line_nr++;
+        if (line.empty()) {
+            continue;
         }
-        return 0;
+
+        const auto output = as::parse_line(line);
+        if(!output.has_value()) {
+            for (auto err : output.error()) {
+                errors.push_back(err.with_line(line_nr));
+            }
+        }
+
+        const auto& val = output.value();
+        std::visit(as::overloaded{
+                [&](const as::parser::JustLabel& label) {
+                    program.label_mappings[label.label.name] = instr_count;
+                },
+                [&](const as::parser::Instruction& instr) {
+                    program.instructions.push_back(instr);
+                    instr_count++;
+                },
+                [&](const as::parser::BlocksDirective& block) {
+                    if(block_count.has_value()) {
+                        errors.push_back(sim::Error{"Duplicate blocks directive", 0, line_nr});
+                    }
+                    block_count = block.number;
+                },
+                [&](const as::parser::WarpsDirective& warp) {
+                    if(warp_count.has_value()) {
+                        errors.push_back(sim::Error{"Duplicate warps directive", 0, line_nr});
+                    }
+                    warp_count = warp.number;
+                },
+        }, val);
     }
 
-    const auto result = *parsed_line;
+    return program;
+}
 
-    std::println("line: {}", as::parser::line_to_str(result));
+auto main(int argc, char** argv) -> int {
+    if (argc < 2) {
+        std::println("Usage: {} <input file>", argv[0]);
+        return 1;
+    }
 
+    auto input_file = sim::unwrap(open_file(argv[1]));
+    const auto lines = get_lines(input_file);
 
+    input_file.close();
 
-    /*if (argc < 3) {*/
-    /*    std::println("Usage: {} <input file> <output_file>", argv[0]);*/
-    /*    return 1;*/
-    /*}*/
-    /**/
-    /*auto input_file = sim::unwrap(open_file(argv[1]));*/
-    /*const auto lines = get_lines(input_file);*/
-    /**/
-    /*auto output_file = std::ofstream{argv[2]};*/
-    /*if(!output_file.is_open()) {*/
-    /*    sim::error("Failed to open output file.");*/
-    /*}*/
-    /**/
-    /*std::optional<Threads> thread_count{};*/
-    /*std::optional<Warps> warp_count{};*/
-    /**/
-    /*for(const auto& line : lines) {*/
-    /*    if (line.empty()) {*/
-    /*        continue;*/
-    /*    }*/
-    /**/
-    /*    const auto output = parse_line(line);*/
-    /*    if(!output.has_value()) {*/
-    /*        sim::error(output.error());*/
-    /*    }*/
-    /**/
-    /*    const auto& val = output.value();*/
-    /*    std::visit([&](const auto& val) {*/
-    /*        using T = std::decay_t<decltype(val)>;*/
-    /*        if constexpr (std::is_same_v<T, Instruction>) {*/
-    /*            sim::error("Instruction not supported.");*/
-    /*        } else if constexpr (std::is_same_v<T, Threads>) {*/
-    /*            if(thread_count.has_value()) {*/
-    /*                sim::error("Thread count defined multiple times.");*/
-    /*            }*/
-    /*            output_file << val.count;*/
-    /*        } else if constexpr (std::is_same_v<T, Warps>) {*/
-    /*            if(warp_count.has_value()) {*/
-    /*                sim::error("Warp count defined multiple times.");*/
-    /*            }*/
-    /*            output_file << val.count;*/
-    /*        } else if constexpr (std::is_same_v<T, Data>) {*/
-    /*            sim::error("Data not supported.");*/
-    /*        }*/
-    /*    }, val);*/
-    /**/
-    /**/
-    /**/
-    /*}*/
-    /**/
-    /*output_file.close();*/
+    auto program_or_err = parse_program(lines);
+
+    if (!program_or_err.has_value()) {
+        for (const auto& error : program_or_err.error()) {
+            sim::print_error(error);
+        }
+        return 1;
+    }
+
+    const auto& [blocks, warps, instructions, label_mappings] = program_or_err.value();
+
+    std::println("Succesfully parsed the entire file!");
+    std::println("Warps: {}, Blocks: {}", warps, blocks);
+    std::println("Parsed {} instructions:", instructions.size());
+    auto i = 0u;
+    for (const auto& instr : instructions) {
+        std::println("{:3}: {}", i, instr.to_str());
+        i++;
+    }
 
     return 0;
 }

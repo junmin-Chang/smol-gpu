@@ -51,7 +51,7 @@ inline void assert_or_err(bool condition, const std::string_view message) {
 template<typename T, typename E>
 auto unwrap(std::expected<T, E>&& expected) -> T {
     if (!expected.has_value()) {
-        error(expected.error());
+        std::println(stderr, "Error: {}.", expected.error());
         std::exit(1);
     }
     return std::move(*expected);

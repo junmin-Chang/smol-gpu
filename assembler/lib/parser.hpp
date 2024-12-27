@@ -18,20 +18,77 @@ struct BlocksDirective {
     std::uint32_t number;
 };
 
-using Operand = std::variant<token::Register, token::LabelRef, token::Immediate>;
+// FIXME: This is hacky since we can't access the column number just from the token type,
+//        technically we should be getting a full Token struct here
+using ImmediateOrLabelref = std::variant<token::Immediate, token::LabelRef>;
 
-struct Instruction {
-    std::optional<std::string_view> label;
-    sim::Mnemonic mnemonic;
+auto to_string(const ImmediateOrLabelref &imm) -> std::string;
+
+struct ItypeOperands {
+    sim::Register rd;
+    sim::Register rs1;
+    ImmediateOrLabelref imm12;
 };
 
-using Line = std::variant<WarpsDirective, BlocksDirective, Instruction>;
+/*using Operands = std::variant<Rtype, Itype, Load, Store, Branch, Jump, Utype, Sx>;*/
+using Operands = std::variant<ItypeOperands>;
+
+struct Instruction {
+    std::optional<as::token::Label> label;
+    sim::Mnemonic mnemonic;
+    Operands operands;
+
+    [[nodiscard]] auto to_str() const -> std::string {
+          std::string result;
+          if (label.has_value()) {
+              result += std::format("{}: ", label->name);
+          }
+          result += mnemonic.to_str() + " ";
+          std::visit(
+              overloaded{
+                  [&result](const parser::ItypeOperands &operands) {
+                      result += operands.rd.to_str() + ", " + operands.rs1.to_str() + ", " +
+                                to_string(operands.imm12);
+                  },
+                  /*[&result](const parser::RtypeOperands &operands) {*/
+                  /*    result += operands.rd.to_str() + ", " + operands.rs1.to_str() + ", " +*/
+                  /*              operands.rs2.to_str();*/
+                  /*},*/
+                  /*[&result](const parser::StypeOperands &operands) {*/
+                  /*    result += operands.rs1.to_str() + ", " + std::to_string(operands.imm12) + "(" +*/
+                  /*              operands.rs2.to_str() + ")";*/
+                  /*},*/
+                  /*[&result](const parser::UtypeOperands &operands) {*/
+                  /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
+                  /*},*/
+                  /*[&result](const parser::BtypeOperands &operands) {*/
+                  /*    result += operands.rs1.to_str() + ", " + operands.rs2.to_str() + ", " +*/
+                  /*              std::to_string(operands.imm12);*/
+                  /*},*/
+                  /*[&result](const parser::JtypeOperands &operands) {*/
+                  /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
+                  /*},*/
+                  /*[&result](const parser::UxtypeOperands &operands) {*/
+                  /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
+                  /*},*/
+              },
+              operands);
+          return result;
+    }
+};
+
+struct JustLabel{
+    as::token::Label label;
+};
+
+using Line = std::variant<JustLabel, WarpsDirective, BlocksDirective, Instruction>;
 auto line_to_str(const Line &line) -> std::string;
 
 struct Program {
-    std::int32_t threads{};
+    std::int32_t blocks{};
     std::int32_t warps{};
     std::vector<Instruction> instructions;
+    std::unordered_map<std::string_view, std::uint32_t> label_mappings;
 };
 
 }
