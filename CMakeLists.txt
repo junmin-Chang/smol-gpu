@@ -73,11 +73,6 @@ if(ENABLE_TESTS)
   add_subdirectory(test)
 endif()
 
-option(BUILD_ASSEMBLER "Builds the assembler" ON)
-if(BUILD_ASSEMBLER)
-  add_subdirectory(assembler)
-endif()
-
 # option(ENABLE_EXAMPLES "Enables examples" ON)
 # if(ENABLE_EXAMPLES)
 #   add_subdirectory(examples)
