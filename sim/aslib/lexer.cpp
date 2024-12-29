@@ -137,7 +137,12 @@ auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
 
     const char c = *peek();
 
-    if (is_numeric(c)) {
+    // Skip comments
+    if (c == '#') {
+        return std::nullopt;
+    }
+
+    if (c == '-' || is_numeric(c)) {
         return parse_number();
     }
 

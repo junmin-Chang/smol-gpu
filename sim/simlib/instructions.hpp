@@ -779,6 +779,79 @@ constexpr auto to_string(const MnemonicName name) -> std::string_view {
     return "unknown";
 }
 
+constexpr auto mnemonic_name_to_opcode(MnemonicName name) -> Opcode {
+    switch (name) {
+    case MnemonicName::LUI:
+        return Opcode::LUI;
+    case MnemonicName::AUIPC:
+        return Opcode::AUIPC;
+    case MnemonicName::ADDI:
+        return Opcode::ITYPE;
+    case MnemonicName::SLTI:
+        return Opcode::ITYPE;
+    case MnemonicName::XORI:
+        return Opcode::ITYPE;
+    case MnemonicName::ORI:
+        return Opcode::ITYPE;
+    case MnemonicName::ANDI:
+        return Opcode::ITYPE;
+    case MnemonicName::SLLI:
+        return Opcode::ITYPE;
+    case MnemonicName::SRLI:
+        return Opcode::ITYPE;
+    case MnemonicName::SRAI:
+        return Opcode::ITYPE;
+    case MnemonicName::ADD:
+        return Opcode::RTYPE;
+    case MnemonicName::SUB:
+        return Opcode::RTYPE;
+    case MnemonicName::SLL:
+        return Opcode::RTYPE;
+    case MnemonicName::SLT:
+        return Opcode::RTYPE;
+    case MnemonicName::XOR:
+        return Opcode::RTYPE;
+    case MnemonicName::SRL:
+        return Opcode::RTYPE;
+    case MnemonicName::SRA:
+        return Opcode::RTYPE;
+    case MnemonicName::OR:
+        return Opcode::RTYPE;
+    case MnemonicName::AND:
+        return Opcode::RTYPE;
+    case MnemonicName::LB:
+        return Opcode::LOAD;
+    case MnemonicName::LH:
+        return Opcode::LOAD;
+    case MnemonicName::LW:
+        return Opcode::LOAD;
+    case MnemonicName::SB:
+        return Opcode::STYPE;
+    case MnemonicName::SH:
+        return Opcode::STYPE;
+    case MnemonicName::SW:
+        return Opcode::STYPE;
+    case MnemonicName::JAL:
+        return Opcode::JTYPE;
+    case MnemonicName::JALR:
+        return Opcode::JALR;
+    case MnemonicName::BEQ:
+        return Opcode::BTYPE;
+    case MnemonicName::BNE:
+        return Opcode::BTYPE;
+    case MnemonicName::BLT:
+        return Opcode::BTYPE;
+    case MnemonicName::BGE:
+        return Opcode::BTYPE;
+    case MnemonicName::HALT:
+        return Opcode::HALT;
+    case MnemonicName::SX_SLT:
+        return Opcode::SX_SLT;
+    case MnemonicName::SX_SLTI:
+        return Opcode::SX_SLTI;
+    }
+}
+
 struct Mnemonic {
     Mnemonic(MnemonicName name, bool is_scalar) : name(name), has_s_prefix(is_scalar) {}
 
@@ -787,11 +860,32 @@ struct Mnemonic {
     }
 
     [[nodiscard]] auto to_str() const -> std::string {
-        return std::format("{}{}", is_scalar() ? "s." : "", to_string(name));
+        return std::format("{}{}", has_s_prefix ? "s." : "", to_string(name));
     }
 
+    [[nodiscard]] auto to_opcode() const -> IData {
+        auto opcode = (IData)mnemonic_name_to_opcode(name);
+        if (has_s_prefix) {
+            opcode |= (IData)1 << 6u;
+        }
+        return opcode;
+    }
+
+    [[nodiscard]] auto is_vector_scalar() const -> bool {
+        return name == MnemonicName::SX_SLT || name == MnemonicName::SX_SLTI;
+    }
+
+    [[nodiscard]] auto is_branch() const -> bool {
+        return name == MnemonicName::BEQ || name == MnemonicName::BNE || name == MnemonicName::BLT || name == MnemonicName::BGE;
+    }
+
+    [[nodiscard]] auto is_jump() const -> bool {
+        return name == MnemonicName::JAL || name == MnemonicName::JALR;
+    }
+
+    // in practice, that is equivalent to MSB of the opcode being 1
     [[nodiscard]] auto is_scalar() const -> bool {
-        return has_s_prefix || name == MnemonicName::SX_SLT || name == MnemonicName::SX_SLTI;
+        return has_s_prefix || is_vector_scalar() || is_branch() || is_jump();
     }
 
     auto operator==(const Mnemonic &other) const -> bool {

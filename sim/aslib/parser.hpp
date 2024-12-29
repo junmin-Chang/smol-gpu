@@ -27,11 +27,44 @@ auto to_string(const ImmediateOrLabelref &imm) -> std::string;
 struct ItypeOperands {
     sim::Register rd;
     sim::Register rs1;
-    ImmediateOrLabelref imm12;
+    token::Immediate imm12;
+};
+
+struct RtypeOperands {
+    sim::Register rd;
+    sim::Register rs1;
+    sim::Register rs2;
+};
+
+struct StypeOperands {
+    sim::Register rs1;
+    sim::Register rs2;
+    token::Immediate imm12;
 };
 
 /*using Operands = std::variant<Rtype, Itype, Load, Store, Branch, Jump, Utype, Sx>;*/
-using Operands = std::variant<ItypeOperands>;
+using Operands = std::variant<ItypeOperands, RtypeOperands, StypeOperands>;
+
+constexpr auto is_itype_arithmetic(sim::MnemonicName name) -> bool {
+    return name == sim::MnemonicName::ADDI || name == sim::MnemonicName::SLTI || name == sim::MnemonicName::XORI ||
+           name == sim::MnemonicName::ORI || name == sim::MnemonicName::ANDI || name == sim::MnemonicName::SLLI ||
+           name == sim::MnemonicName::SRLI || name == sim::MnemonicName::SRAI || name == sim::MnemonicName::SX_SLTI;
+}
+
+constexpr auto is_rtype(sim::MnemonicName name) -> bool {
+    return name == sim::MnemonicName::ADD || name == sim::MnemonicName::SUB || name == sim::MnemonicName::SLL ||
+           name == sim::MnemonicName::SLT || name == sim::MnemonicName::XOR || name == sim::MnemonicName::SRL ||
+           name == sim::MnemonicName::SRA || name == sim::MnemonicName::OR || name == sim::MnemonicName::AND ||
+           name == sim::MnemonicName::SX_SLT;
+}
+
+constexpr auto is_load_type(sim::MnemonicName name) -> bool {
+    return name == sim::MnemonicName::LB || name == sim::MnemonicName::LH || name == sim::MnemonicName::LW;
+}
+
+constexpr auto is_store_type(sim::MnemonicName name) -> bool {
+    return name == sim::MnemonicName::SB || name == sim::MnemonicName::SH || name == sim::MnemonicName::SW;
+}
 
 struct Instruction {
     std::optional<as::token::Label> label;
@@ -46,18 +79,23 @@ struct Instruction {
           result += mnemonic.to_str() + " ";
           std::visit(
               overloaded{
-                  [&result](const parser::ItypeOperands &operands) {
-                      result += operands.rd.to_str() + ", " + operands.rs1.to_str() + ", " +
-                                to_string(operands.imm12);
+                  [&](const parser::ItypeOperands &operands) {
+                      if (is_load_type(mnemonic.get_name())) {
+                          result += operands.rd.to_str() + ", " + std::to_string(operands.imm12.value) + "(" +
+                                    operands.rs1.to_str() + ")";
+                      } else {
+                          result += operands.rd.to_str() + ", " + operands.rs1.to_str() + ", " +
+                                    to_string(operands.imm12);
+                      }
                   },
-                  /*[&result](const parser::RtypeOperands &operands) {*/
-                  /*    result += operands.rd.to_str() + ", " + operands.rs1.to_str() + ", " +*/
-                  /*              operands.rs2.to_str();*/
-                  /*},*/
-                  /*[&result](const parser::StypeOperands &operands) {*/
-                  /*    result += operands.rs1.to_str() + ", " + std::to_string(operands.imm12) + "(" +*/
-                  /*              operands.rs2.to_str() + ")";*/
-                  /*},*/
+                  [&result](const parser::RtypeOperands &operands) {
+                      result += operands.rd.to_str() + ", " + operands.rs1.to_str() + ", " +
+                                operands.rs2.to_str();
+                  },
+                  [&result](const parser::StypeOperands &operands) {
+                      result += operands.rs2.to_str() + ", " + std::to_string(operands.imm12.value) + "(" +
+                                operands.rs1.to_str() + ")";
+                  },
                   /*[&result](const parser::UtypeOperands &operands) {*/
                   /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
                   /*},*/
@@ -85,8 +123,8 @@ using Line = std::variant<JustLabel, WarpsDirective, BlocksDirective, Instructio
 auto line_to_str(const Line &line) -> std::string;
 
 struct Program {
-    std::int32_t blocks{};
-    std::int32_t warps{};
+    std::uint32_t blocks{};
+    std::uint32_t warps{};
     std::vector<Instruction> instructions;
     std::unordered_map<std::string_view, std::uint32_t> label_mappings;
 };
@@ -126,14 +164,14 @@ class Parser {
     auto parse_directive() -> std::optional<Result>;
     auto parse_instruction() -> std::optional<Result>;
 
-    auto parse_rtype_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_itype_arithemtic_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_load_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_store_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_branch_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_jump_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_utype_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_sx_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_rtype_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_itype_arithemtic_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_load_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_store_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_branch_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_jump_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_utype_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_sx_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
 
     void push_err(Error &&err);
     void push_err(std::string &&message, unsigned column);
@@ -143,9 +181,11 @@ class Parser {
     auto consume_errors() -> std::vector<Error> { return std::move(errors); }
 
   private:
+
+    auto check_register_correct_type(const Token &reg_token, bool should_be_scalar) -> bool;
     std::span<Token> tokens;
     std::vector<sim::Error> errors;
 };
 
-auto parse_line(const std::string_view &json) -> std::expected<Parser::Result, std::vector<Parser::Error>>;
+auto parse_line(std::span<Token> tokens) -> std::expected<Parser::Result, std::vector<Parser::Error>>;
 } // namespace as

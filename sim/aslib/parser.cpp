@@ -12,7 +12,6 @@
 namespace as {
 
 namespace parser {
-
 auto to_string(const ImmediateOrLabelref &imm) -> std::string {
     return std::visit(overloaded{
                           [](const token::Immediate &imm) -> std::string { return std::to_string(imm.value); },
@@ -33,6 +32,21 @@ auto line_to_str(const parser::Line &line) -> std::string {
                       line);
 }
 
+}
+
+#define CHECK_REG(reg, should_be_scalar) \
+    if (!check_register_correct_type(reg, should_be_scalar)) { \
+        return std::nullopt; \
+    }
+
+auto Parser::check_register_correct_type(const Token &reg_token, bool should_be_scalar) -> bool {
+    const auto &reg = reg_token.as<token::Register>();
+    if (reg.register_data.is_scalar() != should_be_scalar) {
+        push_err(std::format("Register '{}' should be {}", reg.register_data.to_str(), should_be_scalar ? "scalar" : "vector"), reg_token.col);
+        return false;
+    }
+
+    return true;
 }
 
 auto Parser::chop() -> std::optional<Token> {
@@ -68,12 +82,6 @@ void Parser::throw_unexpected_eos(std::string &&expected) {
     push_err(std::format("Unexpected end of stream: Expected {}", expected), 0);
 }
 
-constexpr auto is_itype_arithmetic(sim::MnemonicName name) -> bool {
-    return name == sim::MnemonicName::ADDI || name == sim::MnemonicName::SLTI || name == sim::MnemonicName::XORI ||
-           name == sim::MnemonicName::ORI || name == sim::MnemonicName::ANDI || name == sim::MnemonicName::SLLI ||
-           name == sim::MnemonicName::SRLI || name == sim::MnemonicName::SRAI;
-}
-
 auto Parser::parse_instruction() -> std::optional<Result> {
     auto mnemonic_token = *chop();
     auto mnemonic = mnemonic_token.as<token::Mnemonic>().mnemonic;
@@ -83,31 +91,46 @@ auto Parser::parse_instruction() -> std::optional<Result> {
         return parser::Instruction{.mnemonic = mnemonic};
     }
 
-    // ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI
-    if (is_itype_arithmetic(mnemonic.get_name())) {
+    // ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI, SX_SLTI
+    if (parser::is_itype_arithmetic(mnemonic.get_name())) {
         return parse_itype_arithemtic_instruction(mnemonic);
     }
 
-    /**/
-    /*if (sim::is_of_type(mnemonic, sim::Opcode::RTYPE)) {*/
-    /*    return parse_rtype_instruction(mnemonic);*/
-    /*}*/
-    /**/
-    /*if (sim::is_of_type(mnemonic, sim::Opcode::STYPE)) {*/
-    /*    return parse_stype_instruction(mnemonic);*/
-    /*}*/
+    // ADD, SUB, SLL, SLT, XOR, SRL, SRA, OR, AND, SX_SLT
+    if (parser::is_rtype(mnemonic.get_name())) {
+        return parse_rtype_instruction(mnemonic);
+    }
+
+    // LB, LH, LW
+    if (parser::is_load_type(mnemonic.get_name())) {
+        return parse_load_instruction(mnemonic);
+    }
+
+    // SB, SH, SW
+    if (parser::is_store_type(mnemonic.get_name())) {
+        return parse_store_instruction(mnemonic);
+    }
 
     push_err(std::format("Unknown mnemonic: '{}'", mnemonic.to_str()), mnemonic_token.col);
     return std::nullopt;
 }
 
 // <opcode> <rd>, <rs1>, <imm12>
-auto Parser::parse_itype_arithemtic_instruction(sim::Mnemonic mnemonic) -> std::optional<parser::Instruction> {
+auto Parser::parse_itype_arithemtic_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction> {
     EXPECT_OR_RETURN(rd, token::Register);
     EXPECT_OR_RETURN(comma1, token::Comma);
     EXPECT_OR_RETURN(rs1, token::Register);
     EXPECT_OR_RETURN(comma2, token::Comma);
     EXPECT_OR_RETURN(imm12, token::Immediate);
+
+    // if it's a vector scalar instuction, the destination register should be scalar but the source registers should be vector
+    if (mnemonic.get_name() == sim::MnemonicName::SX_SLTI) {
+        CHECK_REG(*rd, true);
+        CHECK_REG(*rs1, false);
+    } else {
+        CHECK_REG(*rd, mnemonic.is_scalar());
+        CHECK_REG(*rs1, mnemonic.is_scalar());
+    }
 
     auto instruction = parser::Instruction{
         .label = {},
@@ -116,6 +139,86 @@ auto Parser::parse_itype_arithemtic_instruction(sim::Mnemonic mnemonic) -> std::
             .rd = rd->as<token::Register>().register_data,
             .rs1 = rs1->as<token::Register>().register_data,
             .imm12 = imm12->as<token::Immediate>(),
+        },
+    };
+
+    return instruction;
+}
+
+auto Parser::parse_rtype_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction> {
+    EXPECT_OR_RETURN(rd, token::Register);
+    EXPECT_OR_RETURN(comma1, token::Comma);
+    EXPECT_OR_RETURN(rs1, token::Register);
+    EXPECT_OR_RETURN(comma2, token::Comma);
+    EXPECT_OR_RETURN(rs2, token::Register);
+
+    // if it's a vector scalar instuction, the destination register should be scalar but the source registers should be vector
+    if (mnemonic.get_name() == sim::MnemonicName::SX_SLT) {
+        CHECK_REG(*rd, true);
+        CHECK_REG(*rs1, false);
+        CHECK_REG(*rs2, false);
+    } else {
+        CHECK_REG(*rd, mnemonic.is_scalar());
+        CHECK_REG(*rs1, mnemonic.is_scalar());
+        CHECK_REG(*rs2, mnemonic.is_scalar());
+    }
+
+    auto instruction = parser::Instruction{
+        .label = {},
+        .mnemonic = mnemonic,
+        .operands = parser::RtypeOperands{
+            .rd = rd->as<token::Register>().register_data,
+            .rs1 = rs1->as<token::Register>().register_data,
+            .rs2 = rs2->as<token::Register>().register_data,
+        },
+    };
+
+    return instruction;
+}
+
+auto Parser::parse_load_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction> {
+    EXPECT_OR_RETURN(rd, token::Register);
+    EXPECT_OR_RETURN(comma1, token::Comma);
+    EXPECT_OR_RETURN(offset, token::Immediate);
+    EXPECT_OR_RETURN(lparen, token::Lparen);
+    EXPECT_OR_RETURN(rs1, token::Register);
+    EXPECT_OR_RETURN(rparen, token::Rparen);
+
+    CHECK_REG(*rd, mnemonic.is_scalar());
+    CHECK_REG(*rs1, mnemonic.is_scalar());
+
+    auto instruction = parser::Instruction{
+        .label = {},
+        .mnemonic = mnemonic,
+        .operands = parser::ItypeOperands{
+            .rd = rd->as<token::Register>().register_data,
+            .rs1 = rs1->as<token::Register>().register_data,
+            .imm12 = offset->as<token::Immediate>(),
+        },
+    };
+
+    return instruction;
+}
+
+
+auto Parser::parse_store_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction> {
+    EXPECT_OR_RETURN(rs2, token::Register);
+    EXPECT_OR_RETURN(comma1, token::Comma);
+    EXPECT_OR_RETURN(offset, token::Immediate);
+    EXPECT_OR_RETURN(lparen, token::Lparen);
+    EXPECT_OR_RETURN(rs1, token::Register);
+    EXPECT_OR_RETURN(rparen, token::Rparen);
+
+    CHECK_REG(*rs1, mnemonic.is_scalar());
+    CHECK_REG(*rs2, mnemonic.is_scalar());
+
+    auto instruction = parser::Instruction{
+        .label = {},
+        .mnemonic = mnemonic,
+        .operands = parser::StypeOperands{
+            .rs1 = rs1->as<token::Register>().register_data,
+            .rs2 = rs2->as<token::Register>().register_data,
+            .imm12 = offset->as<token::Immediate>(),
         },
     };
 
@@ -200,18 +303,7 @@ auto Parser::parse_line() -> std::optional<Result> {
     return std::nullopt;
 }
 
-auto parse_line(const std::string_view &json) -> std::expected<Parser::Result, std::vector<Parser::Error>> {
-    auto [tokens, errors] = collect_tokens(json);
-    if (!errors.empty()) {
-        return std::unexpected(errors);
-    }
-
-    std::print("{{ ");
-    for (const auto &token : tokens) {
-        std::print("{}, ", token.to_str());
-    }
-    std::println(" }}");
-
+auto parse_line(std::span<Token> tokens) -> std::expected<Parser::Result, std::vector<Parser::Error>> { 
     Parser parser{tokens};
     auto result = parser.parse_line();
     if (!result.has_value()) {

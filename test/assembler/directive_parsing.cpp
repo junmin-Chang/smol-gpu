@@ -46,7 +46,9 @@ TEST_CASE("Parsing directives") {
 
     SUBCASE("Blocks Directive: correct input") {
         input = ".blocks 42";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        REQUIRE(errors.empty());
+        const auto result = as::parse_line(tokens);
 
         REQUIRE(result.has_value());
         REQUIRE(std::holds_alternative<as::parser::BlocksDirective>(result.value()));
@@ -55,28 +57,31 @@ TEST_CASE("Parsing directives") {
 
     SUBCASE("Blocks Directive: incorrect input: no number provided") {
         input = ".blocks";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
 
     SUBCASE("Blocks Directive: incorrect input: negative number provided") {
         input = ".blocks -42";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
 
     SUBCASE("Blocks Directive: incorrect input: invalid number provided") {
         input = ".blocks 42.0";
-        const auto result = as::parse_line(input);
-
-        REQUIRE_FALSE(result.has_value());
+        auto [tokens, errors] = as::collect_tokens(input);
+        REQUIRE_FALSE(errors.empty());
     }
 
     SUBCASE("Warps Directive: correct input") {
         input = ".warps 42";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        REQUIRE(errors.empty());
+        auto result = as::parse_line(tokens);
 
         REQUIRE(result.has_value());
         REQUIRE(std::holds_alternative<as::parser::WarpsDirective>(result.value()));
@@ -85,42 +90,46 @@ TEST_CASE("Parsing directives") {
 
     SUBCASE("Warps Directive: incorrect input: no number provided") {
         input = ".warps";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
 
     SUBCASE("Warps Directive: incorrect input: negative number provided") {
         input = ".warps -42";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
 
     SUBCASE("Warps Directive: incorrect input: invalid number provided") {
         input = ".warps 42.0";
-        const auto result = as::parse_line(input);
-
-        REQUIRE_FALSE(result.has_value());
+        auto [tokens, errors] = as::collect_tokens(input);
+        REQUIRE_FALSE(errors.empty());
     }
 
     SUBCASE("Invalid Directive: incorrect input") {
         input = ".invalid";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
 
     SUBCASE("Invalid Directive: Tokens after directive") {
         input = ".blocks 42 .warps 42";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
 
     SUBCASE("Invalid Directive: Tokens before directive") {
         input = "42 .blocks 42";
-        const auto result = as::parse_line(input);
+        auto [tokens, errors] = as::collect_tokens(input);
+        auto result = as::parse_line(tokens);
 
         REQUIRE_FALSE(result.has_value());
     }
