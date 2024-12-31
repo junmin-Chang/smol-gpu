@@ -1,9 +1,11 @@
 #pragma once
-#include <algorithm>
+#include <expected>
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <variant>
+#include <fstream>
+#include <filesystem>
+#include <vector>
 
 namespace as {
 
@@ -47,5 +49,34 @@ constexpr auto num_to_string(num_type num) -> std::string {
                       },
                       num);
 }
+
+
+inline auto open_file(const std::filesystem::path& path) -> std::expected<std::ifstream, std::string_view> {
+    auto file = std::ifstream{path};
+    if (!file.is_open()) {
+        return std::unexpected{std::format("Failed to open file: {}", path.c_str())};
+    }
+    return file;
+}
+
+inline auto get_lines(std::ifstream& file) -> std::vector<std::string> {
+    auto lines = std::vector<std::string>{};
+    for (auto line = std::string{}; std::getline(file, line);) {
+        lines.push_back(line);
+    }
+    return lines;
+}
+
+inline auto trim_line(const std::string_view& line) -> std::string_view {
+    auto line2 = line;
+    while (!line2.empty() && as::is_whitespace(line2.front())) {
+        line2.remove_prefix(1);
+    }
+    while (!line2.empty() && as::is_whitespace(line2.back())) {
+        line2.remove_suffix(1);
+    }
+    return line2;
+}
+
 
 }

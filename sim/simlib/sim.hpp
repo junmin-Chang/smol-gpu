@@ -76,6 +76,8 @@ struct InstructionMemory {
     uint32_t stack_ptr = 0u;
 };
 
+
+using data_memory_container_t = std::map<IData, IData>;
 template <uint32_t num_channels>
 struct DataMemory {
     static constexpr IData MAX_SIZE = std::numeric_limits<IData>::max();
@@ -90,7 +92,7 @@ struct DataMemory {
     IData *data_mem_write_data[num_channels];    // input
     CData *data_mem_write_ready;                 // output
 
-    std::map<IData, IData> memory{};
+    data_memory_container_t memory{};
 
     auto operator[](IData addr) -> IData& {
         return memory[addr];

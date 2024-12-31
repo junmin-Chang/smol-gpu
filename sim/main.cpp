@@ -2,8 +2,8 @@
 #include <print>
 #include <fstream>
 #include <expected>
-#include <format>
 #include "common.hpp"
+#include "data_reader.hpp"
 #include "instructions.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
@@ -14,32 +14,6 @@
 #include <variant>
 #include <string_view>
 #include <algorithm>
-
-auto open_file(const std::string_view filename) -> std::expected<std::ifstream, std::string_view> {
-    auto file = std::ifstream{filename.data()};
-    if (!file.is_open()) {
-        return std::unexpected{std::format("Failed to open file: {}", filename)};
-    }
-    return file;
-}
-
-auto get_lines(std::ifstream& file) -> std::vector<std::string> {
-    auto lines = std::vector<std::string>{};
-    for (auto line = std::string{}; std::getline(file, line);) {
-        lines.push_back(line);
-    }
-    return lines;
-}
-
-auto trim_line(std::string_view& line) -> std::string_view {
-    while (!line.empty() && as::is_whitespace(line.front())) {
-        line.remove_prefix(1);
-    }
-    while (!line.empty() && as::is_whitespace(line.front())) {
-        line.remove_suffix(1);
-    }
-    return line;
-}
 
 constexpr auto is_whitespace(std::string_view str) -> bool {
     return str.empty() || std::all_of(str.begin(), str.end(), [](char c) { return as::is_whitespace(c); });
@@ -148,12 +122,25 @@ auto translate_to_binary(const as::parser::Program& program) -> std::vector<sim:
 
 auto main(int argc, char** argv) -> int {
     if (argc < 2) {
-        std::println("Usage: {} <input file>", argv[0]);
+        std::println("Usage: {} <input file> [data file]", argv[0]);
         return 1;
     }
 
-    auto input_file = sim::unwrap(open_file(argv[1]));
-    const auto lines = get_lines(input_file);
+    const std::string_view input_filename = argv[1];
+    auto data = std::optional<sim::data_memory_container_t>{};
+    if (argc == 3) {
+        auto data_or_error = as::read_data(argv[2]);
+
+        if (!data_or_error) {
+            std::println(stderr, "Failed to read data file '{}': {}", argv[2], data_or_error.error());
+            return 1;
+        }
+
+        data = data_or_error.value();
+    }
+
+    auto input_file = sim::unwrap(as::open_file(input_filename));
+    const auto lines = as::get_lines(input_file);
 
     input_file.close();
 
@@ -181,10 +168,12 @@ auto main(int argc, char** argv) -> int {
     Vgpu top{};
 
     constexpr auto num_channels = 8;
-    constexpr auto mem_cells_count = 2048;
     auto data_mem = sim::make_data_memory<num_channels>(&top);
+    if (data.has_value()) {
+        data_mem.memory = data.value();
+    }
     auto instruction_mem = sim::make_instruction_memory<num_channels>(&top);
-    
+
     for (auto i = 0u; i < machine_code.size(); i++) {
         instruction_mem.memory[i] = machine_code[i].bits;
     }
@@ -201,7 +190,6 @@ auto main(int argc, char** argv) -> int {
 
     // Optionally, print data memory content
     data_mem.print_memory();
-
 
     return 0;
 }
