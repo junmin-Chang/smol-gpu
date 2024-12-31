@@ -182,8 +182,8 @@ auto main(int argc, char** argv) -> int {
 
     constexpr auto num_channels = 8;
     constexpr auto mem_cells_count = 2048;
-    auto data_mem = sim::make_data_memory<mem_cells_count, num_channels>(&top);
-    auto instruction_mem = sim::make_instruction_memory<mem_cells_count, num_channels>(&top);
+    auto data_mem = sim::make_data_memory<num_channels>(&top);
+    auto instruction_mem = sim::make_instruction_memory<num_channels>(&top);
     
     for (auto i = 0u; i < machine_code.size(); i++) {
         instruction_mem.memory[i] = machine_code[i].bits;
@@ -200,7 +200,7 @@ auto main(int argc, char** argv) -> int {
     }
 
     // Optionally, print data memory content
-    data_mem.print_memory(0, 10);
+    data_mem.print_memory();
 
 
     return 0;

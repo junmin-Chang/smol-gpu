@@ -12,10 +12,10 @@ constexpr auto DATA_NUM_CHANNELS = Vgpu_gpu::DATA_MEM_NUM_CHANNELS;
 TEST_CASE("mov + sw + halt") {
     auto gpu = Vgpu{};
 
-    auto instruction_memory = sim::make_instruction_memory<1024, INST_NUM_CHANNELS>(&gpu);
-    auto data_memory = sim::make_data_memory<1024, DATA_NUM_CHANNELS>(&gpu);
+    auto instruction_memory = sim::make_instruction_memory<INST_NUM_CHANNELS>(&gpu);
+    auto data_memory = sim::make_data_memory<DATA_NUM_CHANNELS>(&gpu);
 
-    instruction_memory.push_instruction(addi(5, 1, 0));
+    instruction_memory.push_instruction(addi(5x, 1, 0));
     instruction_memory.push_instruction(sw(5, 1, 0));
     instruction_memory.push_instruction(halt());
 

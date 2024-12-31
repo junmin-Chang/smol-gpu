@@ -26,26 +26,28 @@ constexpr bool get_bit(CData signal, int bit) {
     return (signal >> bit) & 1;
 }
 
-template <uint32_t mem_cells, uint32_t num_channels>
+template <uint32_t num_channels>
 struct InstructionMemory {
-    Vgpu* dut;
-    CData *instruction_mem_read_valid;                  // input
-    IData *instruction_mem_read_address[num_channels];  // input
-    CData *instruction_mem_read_ready;                  // output
-    IData *instruction_mem_read_data[num_channels];     // output
+    static constexpr IData MAX_SIZE = std::numeric_limits<IData>::max();
 
-    std::array<IData, mem_cells> memory{};
+    Vgpu* dut;
+    CData *instruction_mem_read_valid;                              // input
+    std::array<IData*, num_channels> instruction_mem_read_address;  // input
+    CData *instruction_mem_read_ready;                              // output
+    std::array<IData*, num_channels> instruction_mem_read_data;     // output
+
+    std::unordered_map<IData, IData> memory{};
 
     // Process read requests
     void process() {
         for (size_t i = 0; i < num_channels; i++) {
             if (*instruction_mem_read_valid & (1 << i)) {
                 IData addr = *instruction_mem_read_address[i];
-                if (addr < mem_cells) {
+                if (addr < MAX_SIZE) {
                     *instruction_mem_read_data[i] = memory[addr];
                 } else {
                     *instruction_mem_read_data[i] = 0;
-                    std::println(stderr, "Error: Read from invalid address {}", addr);
+                    std::println(stderr, "Error: Read out of bounds {}", addr);
                 }
                 set_bit(*instruction_mem_read_ready, (int)i, true);
             } else {
@@ -56,7 +58,7 @@ struct InstructionMemory {
 
     // Method to load an instruction into memory
     void load_instruction(IData addr, IData instruction) {
-        if (addr < mem_cells) {
+        if (addr < MAX_SIZE) {
             memory[addr] = instruction;
         } else {
             std::println(stderr, "Error: Attempt to load instruction at invalid address {}", addr);
@@ -74,8 +76,10 @@ struct InstructionMemory {
     uint32_t stack_ptr = 0u;
 };
 
-template <uint32_t mem_cells, uint32_t num_channels>
+template <uint32_t num_channels>
 struct DataMemory {
+    static constexpr IData MAX_SIZE = std::numeric_limits<IData>::max();
+
     Vgpu* dut;
     CData *data_mem_read_valid;                  // input
     IData *data_mem_read_address[num_channels];  // input
@@ -86,7 +90,7 @@ struct DataMemory {
     IData *data_mem_write_data[num_channels];    // input
     CData *data_mem_write_ready;                 // output
 
-    std::array<IData, mem_cells> memory{};
+    std::map<IData, IData> memory{};
 
     auto operator[](IData addr) -> IData& {
         return memory[addr];
@@ -96,9 +100,9 @@ struct DataMemory {
     void process() {
         // Process writes first
         for (size_t i = 0; i < num_channels; i++) {
-            if (*data_mem_write_valid & (1 << i)) {
+            if ((*data_mem_write_valid & (1 << i)) != 0) {
                 IData addr = *data_mem_write_address[i];
-                if (addr < mem_cells) {
+                if (addr < MAX_SIZE) {
                     memory[addr] = *data_mem_write_data[i];
                 } else {
                     std::println(stderr, "Error: Write to invalid address {}", addr);
@@ -113,7 +117,7 @@ struct DataMemory {
         for (size_t i = 0; i < num_channels; i++) {
             if (*data_mem_read_valid & (1 << i)) {
                 IData addr = *data_mem_read_address[i];
-                if (addr < mem_cells) {
+                if (addr < MAX_SIZE) {
                     *data_mem_read_data[i] = memory[addr];
                 } else {
                     data_mem_read_data[i] = 0;
@@ -127,9 +131,14 @@ struct DataMemory {
     }
 
     // Optional: Method to print memory content for debugging
-    void print_memory(IData start_addr = 0, IData end_addr = mem_cells - 1) {
-        for (IData addr = start_addr; addr <= end_addr && addr < mem_cells; ++addr) {
-            std::println("Memory[{}]: {}", addr, memory[addr]);
+    void print_memory(uint32_t max_num_lines = 100) {
+        auto i = 0u;
+        for (const auto& [key, value] : memory) {
+            i++;
+            if (i >= max_num_lines) {
+                break;
+            }
+            std::println("Memory[{}]: {}", key, value);
         }
     }
 
@@ -140,9 +149,9 @@ struct DataMemory {
     uint32_t stack_ptr = 0u;
 };
 
-template <uint32_t mem_cells, uint32_t num_channels>
-auto make_instruction_memory(Vgpu* dut) -> InstructionMemory<mem_cells, num_channels> {
-    InstructionMemory<mem_cells, num_channels> mem{};
+template <uint32_t num_channels>
+auto make_instruction_memory(Vgpu* dut) -> InstructionMemory<num_channels> {
+    InstructionMemory<num_channels> mem{};
     mem.dut = dut;
     mem.instruction_mem_read_valid = &dut->instruction_mem_read_valid;
     mem.instruction_mem_read_ready = &dut->instruction_mem_read_ready;
@@ -153,9 +162,9 @@ auto make_instruction_memory(Vgpu* dut) -> InstructionMemory<mem_cells, num_chan
     return mem;
 }
 
-template <uint32_t mem_cells, uint32_t num_channels>
-auto make_data_memory(Vgpu* dut) -> DataMemory<mem_cells, num_channels> {
-    DataMemory<mem_cells, num_channels> mem{};
+template <uint32_t num_channels>
+auto make_data_memory(Vgpu* dut) -> DataMemory<num_channels> {
+    DataMemory<num_channels> mem{};
     mem.dut = dut;
     mem.data_mem_read_valid = &dut->data_mem_read_valid;
     mem.data_mem_read_ready = &dut->data_mem_read_ready;
@@ -178,8 +187,8 @@ constexpr void set_kernel_config(Vgpu& top, IData base_instructions_address, IDa
     kernel_config[0] = num_warps_per_block;
 }
 
-template <uint32_t mem_cells, uint32_t num_channels>
-bool simulate(Vgpu& top, InstructionMemory<mem_cells, num_channels>& instruction_mem, DataMemory<mem_cells, num_channels>& data_mem, uint32_t max_num_cycles) {
+template <uint32_t num_channels>
+bool simulate(Vgpu& top, InstructionMemory<num_channels>& instruction_mem, DataMemory<num_channels>& data_mem, uint32_t max_num_cycles) {
     top.execution_start = 1;
 
     for (auto cycle = 0u; cycle < max_num_cycles; ++cycle) {
