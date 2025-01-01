@@ -188,4 +188,5 @@ class Parser {
 };
 
 auto parse_line(std::span<Token> tokens) -> std::expected<Parser::Result, std::vector<Parser::Error>>;
+auto parse_program(const std::span<const std::string> lines) -> std::expected<as::parser::Program, std::vector<sim::Error>>;
 } // namespace as

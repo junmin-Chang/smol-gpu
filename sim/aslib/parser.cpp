@@ -313,4 +313,77 @@ auto parse_line(std::span<Token> tokens) -> std::expected<Parser::Result, std::v
     return result.value();
 }
 
+auto parse_program(const std::span<const std::string> lines) -> std::expected<as::parser::Program, std::vector<sim::Error>> {
+    auto program = as::parser::Program{};
+    auto errors = std::vector<sim::Error>{};
+
+    std::optional<std::uint32_t> block_count{};
+    std::optional<std::uint32_t> warp_count{};
+
+    auto line_nr = 0u;
+    auto instr_count = 0u;
+
+    for(const auto& line : lines) {
+        std::println("Parsing line: {}", line);
+        line_nr++;
+
+        // Tokenize
+        auto [tokens, lexer_errors] = as::collect_tokens(line);
+        if (!lexer_errors.empty()) {
+            for (auto error : lexer_errors) {
+                errors.push_back(error.with_line(line_nr));
+            }
+        }
+
+        for (const auto& token : tokens) {
+            std::println("Token: {}", token.to_str());
+        }
+
+        // Skip empty lines
+        if (tokens.empty()) {
+            continue;
+        }
+
+        const auto output = as::parse_line(tokens);
+        if(!output.has_value()) {
+            for (auto err : output.error()) {
+                errors.push_back(err.with_line(line_nr));
+            }
+            continue;
+        }
+
+        const auto& val = output.value();
+        std::visit(as::overloaded{
+                [&](const as::parser::JustLabel& label) {
+                    program.label_mappings[label.label.name] = instr_count;
+                },
+                [&](const as::parser::Instruction& instr) {
+                    program.instructions.push_back(instr);
+                    instr_count++;
+                },
+                [&](const as::parser::BlocksDirective& block) {
+                    if(block_count.has_value()) {
+                        errors.push_back(sim::Error{"Duplicate blocks directive", 0, line_nr});
+                    }
+                    block_count = block.number;
+                },
+                [&](const as::parser::WarpsDirective& warp) {
+                    if(warp_count.has_value()) {
+                        errors.push_back(sim::Error{"Duplicate warps directive", 0, line_nr});
+                    }
+                    warp_count = warp.number;
+                },
+        }, val);
+    }
+
+    program.blocks = block_count.value_or(1);
+    program.warps = warp_count.value_or(1);
+
+    if (!errors.empty()) {
+        return std::unexpected{errors};
+    }
+
+    return program;
+}
+
 }
