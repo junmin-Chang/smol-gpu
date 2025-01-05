@@ -21,7 +21,10 @@ auto translate_to_binary(const as::parser::Program& program) -> std::vector<sim:
             },
                 [&](const as::parser::StypeOperands &operands) {
                 instruction_bits = sim::instructions::create_stype_instruction(opcode, funct3, operands.rs1, operands.rs2, (IData)operands.imm12.value);
-            }
+            },
+                [&](const as::parser::UtypeOperands &operands) {
+                instruction_bits = sim::instructions::create_utype_instruction(opcode, operands.rd, (IData)operands.imm20.value);
+                }
         }, program.instructions[i].operands);
 
         machine_code[i] = instruction_bits;

@@ -111,8 +111,32 @@ auto Parser::parse_instruction() -> std::optional<Result> {
         return parse_store_instruction(mnemonic);
     }
 
+    // LUI, AUIPC
+    if (parser::is_utype(mnemonic.get_name())) {
+        return parse_utype_instruction(mnemonic);
+    }
+
     push_err(std::format("Unknown mnemonic: '{}'", mnemonic.to_str()), mnemonic_token.col);
     return std::nullopt;
+}
+
+auto Parser::parse_utype_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction> {
+    EXPECT_OR_RETURN(rd, token::Register);
+    EXPECT_OR_RETURN(comma, token::Comma);
+    EXPECT_OR_RETURN(imm20, token::Immediate);
+
+    CHECK_REG(*rd, mnemonic.is_scalar());
+
+    auto instruction = parser::Instruction{
+        .label = {},
+        .mnemonic = mnemonic,
+        .operands = parser::UtypeOperands{
+            .rd = rd->as<token::Register>().register_data,
+            .imm20 = imm20->as<token::Immediate>(),
+        },
+    };
+
+    return instruction;
 }
 
 // <opcode> <rd>, <rs1>, <imm12>

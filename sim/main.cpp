@@ -80,7 +80,7 @@ auto main(int argc, char** argv) -> int {
     auto done = sim::simulate(top, instruction_mem, data_mem, 200);
 
     if(!done) {
-        std::println("Simulation failed!");
+        std::println("Simulation didn't finish before the max operation limit!");
         return 1;
     }
 

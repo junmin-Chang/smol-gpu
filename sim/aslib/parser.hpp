@@ -42,8 +42,13 @@ struct StypeOperands {
     token::Immediate imm12;
 };
 
+struct UtypeOperands {
+    sim::Register rd;
+    token::Immediate imm20;
+};
+
 /*using Operands = std::variant<Rtype, Itype, Load, Store, Branch, Jump, Utype, Sx>;*/
-using Operands = std::variant<ItypeOperands, RtypeOperands, StypeOperands>;
+using Operands = std::variant<ItypeOperands, RtypeOperands, StypeOperands, UtypeOperands>;
 
 constexpr auto is_itype_arithmetic(sim::MnemonicName name) -> bool {
     return name == sim::MnemonicName::ADDI || name == sim::MnemonicName::SLTI || name == sim::MnemonicName::XORI ||
@@ -64,6 +69,10 @@ constexpr auto is_load_type(sim::MnemonicName name) -> bool {
 
 constexpr auto is_store_type(sim::MnemonicName name) -> bool {
     return name == sim::MnemonicName::SB || name == sim::MnemonicName::SH || name == sim::MnemonicName::SW;
+}
+
+constexpr auto is_utype(sim::MnemonicName name) -> bool {
+    return name == sim::MnemonicName::LUI || name == sim::MnemonicName::AUIPC;
 }
 
 struct Instruction {
@@ -96,9 +105,9 @@ struct Instruction {
                       result += operands.rs2.to_str() + ", " + std::to_string(operands.imm12.value) + "(" +
                                 operands.rs1.to_str() + ")";
                   },
-                  /*[&result](const parser::UtypeOperands &operands) {*/
-                  /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
-                  /*},*/
+                  [&result](const parser::UtypeOperands &operands) {
+                      result += operands.rd.to_str() + ", " + std::to_string(operands.imm20.value);
+                  },
                   /*[&result](const parser::BtypeOperands &operands) {*/
                   /*    result += operands.rs1.to_str() + ", " + operands.rs2.to_str() + ", " +*/
                   /*              std::to_string(operands.imm12);*/
@@ -171,7 +180,6 @@ class Parser {
     auto parse_branch_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
     auto parse_jump_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
     auto parse_utype_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_sx_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
 
     void push_err(Error &&err);
     void push_err(std::string &&message, unsigned column);
