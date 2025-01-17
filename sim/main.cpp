@@ -10,14 +10,9 @@
 #include "sim.hpp"
 #include <vector>
 #include <string_view>
-#include <algorithm>
-
-constexpr auto is_whitespace(std::string_view str) -> bool {
-    return str.empty() || std::all_of(str.begin(), str.end(), [](char c) { return as::is_whitespace(c); });
-}
 
 auto main(int argc, char** argv) -> int {
-    if (argc < 2) {
+    if (argc < 2 || argc > 3) {
         std::println("Usage: {} <input file> [data file]", argv[0]);
         return 1;
     }
@@ -51,7 +46,7 @@ auto main(int argc, char** argv) -> int {
 
     const auto& [blocks, warps, instructions, label_mappings] = program_or_err.value();
 
-    std::println("\nSuccesfully parsed the entire file!");
+    std::println("\nSuccesfully parsed the entire file.");
     std::println("Warps: {}, Blocks: {}", warps, blocks);
     std::println("Parsed {} instructions:", instructions.size());
     auto i = 0u;
@@ -76,7 +71,6 @@ auto main(int argc, char** argv) -> int {
 
     sim::set_kernel_config(top, 0, 0, blocks, warps);
 
-    // Run simulation
     auto done = sim::simulate(top, instruction_mem, data_mem, 200);
 
     if(!done) {

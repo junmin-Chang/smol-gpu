@@ -326,7 +326,7 @@ struct Register {
 
 // Helper function for validating register numbers
 inline void validate_register(Register reg) {
-    sim::assert_or_err( reg.validate(), Error{.message = std::format("Invalid register: '{}'.", reg.to_str())});
+    sim::assert_or_err( reg.validate(), Error(std::format("Invalid register: '{}'.", reg.to_str())));
 }
 
 // Helper function for validating instruction IDs
@@ -335,7 +335,7 @@ inline void validate_register(Register reg) {
 constexpr void validate_instr_id(const std::string_view id_name, const auto id, const auto &possible_ids) {
     const auto bit_string = std::bitset<7>((IData)id).to_string();
     const auto *const found = std::find(possible_ids.begin(), possible_ids.end(), id);
-    assert_or_err(found != possible_ids.end(), Error{.message = std::format("Unknown {}: '0b{}'", id_name, bit_string)});
+    assert_or_err(found != possible_ids.end(), Error(std::format("Unknown {}: '0b{}'", id_name, bit_string)));
 }
 
 struct InstructionBits {
@@ -379,7 +379,7 @@ struct InstructionBits {
     }
 
     constexpr auto set_imm12(IData imm) -> InstructionBits& {
-        assert_or_err(imm < 4096, Error{.message = std::format("Invalid immediate: '{}', expected 12-bit.", imm)});
+        assert_or_err(imm < 4096, Error(std::format("Invalid immediate: '{}', expected 12-bit.", imm)));
         bits |= imm << 20u;
         return *this;
     }
@@ -391,13 +391,13 @@ struct InstructionBits {
     }
 
     constexpr auto set_imm20(IData imm20) -> InstructionBits& {
-        assert_or_err(imm20 < 1048576, Error{.message = std::format("Invalid immediate: '{}', expected 20-bit.", imm20)});
+        assert_or_err(imm20 < 1048576, Error(std::format("Invalid immediate: '{}', expected 20-bit.", imm20)));
         bits |= imm20 << 12u;
         return *this;
     }
 
     constexpr auto set_imm21(IData imm21) -> InstructionBits& {
-        assert_or_err(imm21 < 2097152, Error{.message = std::format("Invalid immediate: '{}', expected 21-bit.", imm21)});
+        assert_or_err(imm21 < 2097152, Error(std::format("Invalid immediate: '{}', expected 21-bit.", imm21)));
 
         auto imm_j = std::bitset<32>{};
         auto imm = std::bitset<21>(imm21);
@@ -437,7 +437,7 @@ constexpr auto create_itype_instruction(Opcode opcode, Funct3 funct3, Register r
     return InstructionBits().set_opcode(opcode).set_funct3(funct3).set_rd(rd).set_rs1(rs1).set_imm12(imm12);
 }
 constexpr auto create_itype_shift_instruction(Opcode opcode, Funct3 funct3, Funct7 funct7, Register rd, Register rs1, IData imm12) -> InstructionBits {
-    assert_or_err(imm12 < 32, Error{.message = std::format("Invalid immediate: '{}', expected 5-bit immediate in shift instruction.", imm12)});
+    assert_or_err(imm12 < 32, Error(std::format("Invalid immediate: '{}', expected 5-bit immediate in shift instruction.", imm12)));
     return InstructionBits().set_opcode(opcode).set_funct3(funct3).set_funct7(funct7).set_rd(rd).set_rs1(rs1).set_imm12(imm12);
 }
 constexpr auto create_rtype_instruction(Opcode opcode, Funct3 funct3, Funct7 funct7, Register rd, Register rs1, Register rs2) -> InstructionBits {

@@ -43,23 +43,23 @@ void Lexer::trim_whitespace() {
 
 auto Lexer::make_error(std::string&& message, std::optional<uint32_t> col) -> Error {
     auto column_number_loc = col.value_or(this->column_number);
-    return Error{.message = std::string{message}, .column = column_number_loc, .line = 0};
+    return Error(std::move(message), column_number_loc, 0);
 }
 
 auto Lexer::make_error(sim::Error&& error, std::optional<uint32_t> col) -> Error {
     auto column_number_loc = col.value_or(this->column_number);
-    return Error{.message = std::move(error.message), .column = column_number_loc, .line = error.line};
+    return Error(std::move(error.message), column_number_loc, error.line);
 }
 
 auto Lexer::parse_directive() -> std::expected<Token, Error> {
     const auto keyword = chop_while([](char c) {return !is_whitespace(c);});
 
     if (keyword == "blocks") {
-        return Token{token::BlocksDirective{}, column_number};
+        return Token{.token_type=token::BlocksDirective{}, .col=column_number};
     }
 
     if (keyword == "warps") {
-        return Token{token::WarpsDirective{}, column_number};
+        return Token{.token_type=token::WarpsDirective{}, .col=column_number};
     }
 
     if (keyword.empty()) {
@@ -78,7 +78,7 @@ auto Lexer::parse_number() -> std::expected<Token, Error> {
         return std::unexpected(make_error(std::move(error)));
     }
     column_number += source_size_before - source.size();
-    return Token{token::Immediate{*number}, starting_col};
+    return Token{.token_type=token::Immediate{*number}, .col=starting_col};
 }
 
 auto Lexer::parse_keyword() -> std::expected<Token, Error> {
@@ -87,18 +87,16 @@ auto Lexer::parse_keyword() -> std::expected<Token, Error> {
     auto word = chop_while([](char c) { return is_alphanumeric(c) || is_label_char(c) || c == '.' || c == ':'; });
     const auto opcode = sim::str_to_mnemonic(word);
 
-    std::println("word: '{}', rest: '{}'", word, source);
-
     // 1. Check if it's an opcode
     if (opcode.has_value()) {
-        return Token{token::Mnemonic{.mnemonic = *opcode}, starting_col};
+        return Token{.token_type=token::Mnemonic{.mnemonic = *opcode}, .col=starting_col};
     }
 
     // 2. Check if it's a label
     if (word.back() == ':') {
         word.remove_suffix(1);
         if (str_check_predicate(word, is_label_char)) {
-            return Token{token::Label{.name = word}, starting_col};
+            return Token{.token_type=token::Label{.name = word}, .col=starting_col};
         }
     }
 
@@ -107,7 +105,7 @@ auto Lexer::parse_keyword() -> std::expected<Token, Error> {
     if (word[0] == 'x' || word[0] == 's' || word == "pc") {
         auto reg = str_to_reg(word);
         if (reg.has_value()) {
-            return Token{token::Register{.register_data = *reg}, starting_col};
+            return Token{.token_type=token::Register{.register_data = *reg}, .col=starting_col};
         } else {
             reg_error = reg.error();
         }
@@ -115,7 +113,7 @@ auto Lexer::parse_keyword() -> std::expected<Token, Error> {
 
     // 4. Check if it's a label reference
     if (str_check_predicate(word, is_label_char)) {
-        return Token{token::LabelRef{.label_name = word}, starting_col};
+        return Token{.token_type=token::LabelRef{.label_name = word}, .col=starting_col};
     }
 
     // 5. If none of the above, return an error
@@ -155,11 +153,11 @@ auto Lexer::next_token() -> std::optional<std::expected<Token, Error>> {
 
     switch (c) {
         case '(':
-            return Token{token::Lparen{}, first_char_column};
+            return Token{.token_type=token::Lparen{}, .col=first_char_column};
         case ')':
-            return Token{token::Rparen{}, first_char_column};
+            return Token{.token_type=token::Rparen{}, .col=first_char_column};
         case ',':
-            return Token{token::Comma{}, first_char_column};
+            return Token{.token_type=token::Comma{}, .col=first_char_column};
         case '.':
             return parse_directive();
     }

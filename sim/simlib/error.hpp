@@ -12,6 +12,9 @@ struct Error {
     std::uint32_t column;
     std::uint32_t line;
 
+    explicit Error(std::string message, std::uint32_t column = 0, std::uint32_t line = 0) :
+        message(std::move(message)), column(column), line(line) {}
+
     auto with_column(std::uint32_t col) -> Error& {
         column = col;
         return *this;

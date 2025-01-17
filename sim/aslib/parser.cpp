@@ -71,15 +71,15 @@ auto Parser::chop() -> std::optional<Token> {
 void Parser::push_err(Error &&err) { errors.push_back(std::move(err)); }
 
 void Parser::push_err(std::string &&message, unsigned column) {
-    errors.push_back(Error{.message = std::move(message), .column = column});
+    errors.emplace_back(std::move(message), column);
 }
 
 void Parser::throw_unexpected_token(std::string &&expected, const Token &unexpected) {
-    push_err(std::format("Unexpected token: Expected {}, instead found {}", expected, unexpected.to_str()), unexpected.col);
+    push_err(std::format("Unexpected token: Expected {}, instead found {}", std::move(expected), unexpected.to_str()), unexpected.col);
 }
 
 void Parser::throw_unexpected_eos(std::string &&expected) {
-    push_err(std::format("Unexpected end of stream: Expected {}", expected), 0);
+    push_err(std::format("Unexpected end of stream: Expected {}", std::move(expected)), 0);
 }
 
 auto Parser::parse_instruction() -> std::optional<Result> {
@@ -348,7 +348,6 @@ auto parse_program(const std::span<const std::string> lines) -> std::expected<as
     auto instr_count = 0u;
 
     for(const auto& line : lines) {
-        std::println("Parsing line: {}", line);
         line_nr++;
 
         // Tokenize
@@ -357,10 +356,6 @@ auto parse_program(const std::span<const std::string> lines) -> std::expected<as
             for (auto error : lexer_errors) {
                 errors.push_back(error.with_line(line_nr));
             }
-        }
-
-        for (const auto& token : tokens) {
-            std::println("Token: {}", token.to_str());
         }
 
         // Skip empty lines
@@ -387,13 +382,13 @@ auto parse_program(const std::span<const std::string> lines) -> std::expected<as
                 },
                 [&](const as::parser::BlocksDirective& block) {
                     if(block_count.has_value()) {
-                        errors.push_back(sim::Error{"Duplicate blocks directive", 0, line_nr});
+                        errors.emplace_back("Duplicate blocks directive", 0, line_nr);
                     }
                     block_count = block.number;
                 },
                 [&](const as::parser::WarpsDirective& warp) {
                     if(warp_count.has_value()) {
-                        errors.push_back(sim::Error{"Duplicate warps directive", 0, line_nr});
+                        errors.emplace_back("Duplicate warps directive", 0, line_nr);
                     }
                     warp_count = warp.number;
                 },
