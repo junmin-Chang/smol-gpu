@@ -32,7 +32,6 @@ auto main(int argc, char** argv) -> int {
 
     auto input_file = sim::unwrap(as::open_file(input_filename));
     const auto lines = as::get_lines(input_file);
-
     input_file.close();
 
     auto program_or_err = as::parse_program(lines);
@@ -52,6 +51,13 @@ auto main(int argc, char** argv) -> int {
     auto i = 0u;
     for (const auto& instr : instructions) {
         std::println("{:3}: {}", i, instr.to_str());
+        i++;
+    }
+
+    std::println("Labels:");
+    i = 0u;
+    for (const auto& [label, line] : label_mappings) {
+        std::println("{:3}: {}: {}", i, label, line);
         i++;
     }
 

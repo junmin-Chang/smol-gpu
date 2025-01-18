@@ -340,12 +340,22 @@ auto parse_line(std::span<Token> tokens) -> std::expected<Parser::Result, std::v
 auto parse_program(const std::span<const std::string> lines) -> std::expected<as::parser::Program, std::vector<sim::Error>> {
     auto program = as::parser::Program{};
     auto errors = std::vector<sim::Error>{};
-
+ 
     std::optional<std::uint32_t> block_count{};
     std::optional<std::uint32_t> warp_count{};
 
     auto line_nr = 0u;
     auto instr_count = 0u;
+
+    auto add_label = [&](const std::string_view label_name) {
+        if (program.label_mappings.contains(label_name)) {
+            auto previous_declaration_line = program.label_mappings[label_name];
+            errors.emplace_back(std::format("Duplicate label declaration on line {}", line_nr), 0, line_nr);
+        } else {
+            program.label_mappings[label_name] = instr_count;
+        }
+    };
+
 
     for(const auto& line : lines) {
         line_nr++;
@@ -374,10 +384,13 @@ auto parse_program(const std::span<const std::string> lines) -> std::expected<as
         const auto& val = output.value();
         std::visit(as::overloaded{
                 [&](const as::parser::JustLabel& label) {
-                    program.label_mappings[label.label.name] = instr_count;
+                    add_label(label.label.name);
                 },
                 [&](const as::parser::Instruction& instr) {
                     program.instructions.push_back(instr);
+                    if (instr.label.has_value()) {
+                        add_label(instr.label->name);
+                    }
                     instr_count++;
                 },
                 [&](const as::parser::BlocksDirective& block) {

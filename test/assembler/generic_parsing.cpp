@@ -1,5 +1,6 @@
 #include "instructions.hpp"
 #include "lexer.hpp"
+#include "parser.hpp"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "assembler_helper.hpp"
 #include "doctest.h"
@@ -115,5 +116,86 @@ TEST_CASE("Multiple tokens: Valid use cases") {
         REQUIRE(tokens[5].is_of_type<as::token::Lparen>());
         check_reg(tokens[6], sim::RegisterType::VECTOR, 2);
         REQUIRE(tokens[7].is_of_type<as::token::Rparen>());
+    }
+}
+
+TEST_CASE("Labels") {
+    SUBCASE("No instruction line label") {
+        const std::vector<std::string> input = {
+            "label1:",
+            "addi x5, x5, 87",
+            "halt"
+        };
+
+        auto program_or_err = as::parse_program(input);
+        REQUIRE(program_or_err.has_value());
+
+        const auto& [blocks, warps, instructions, label_mappings] = program_or_err.value();
+        REQUIRE(label_mappings.size() == 1);
+        REQUIRE(label_mappings.contains("label1"));
+        REQUIRE_EQ(label_mappings.at("label1"sv), 0);
+    }
+
+    SUBCASE("Instruction with a label") {
+        const std::vector<std::string> input = {
+            "addi x5, x5, 87",
+            "label2: addi x5, x5, 87",
+            "halt"
+        };
+
+        auto program_or_err = as::parse_program(input);
+        REQUIRE(program_or_err.has_value());
+
+        const auto& [blocks, warps, instructions, label_mappings] = program_or_err.value();
+        REQUIRE(label_mappings.size() == 1);
+        REQUIRE(label_mappings.contains("label2"));
+        REQUIRE_EQ(label_mappings.at("label2"sv), 1);
+
+    }
+    SUBCASE("Instruction without a label (no label)") {
+        const std::vector<std::string> input = {
+            "addi x5, x5, 87",
+            "addi x5, x5, 87",
+            "halt"
+        };
+
+        auto program_or_err = as::parse_program(input);
+        REQUIRE(program_or_err.has_value());
+
+        const auto& [blocks, warps, instructions, label_mappings] = program_or_err.value();
+        REQUIRE(label_mappings.size() == 0);
+    }
+    SUBCASE("Multiple labels") {
+        const std::vector<std::string> input = {
+            "label3:",
+            "label1: addi x5, x5, 87",
+            "label2: addi x5, x5, 87",
+            "halt"
+        };
+
+        auto program_or_err = as::parse_program(input);
+        REQUIRE(program_or_err.has_value());
+
+        const auto& [blocks, warps, instructions, label_mappings] = program_or_err.value();
+        REQUIRE(label_mappings.size() == 3);
+        REQUIRE(label_mappings.contains("label1"));
+        REQUIRE(label_mappings.contains("label2"));
+        REQUIRE(label_mappings.contains("label3"));
+        REQUIRE_EQ(label_mappings.at("label3"sv), 0);
+        REQUIRE_EQ(label_mappings.at("label1"sv), 0);
+        REQUIRE_EQ(label_mappings.at("label2"sv), 1);
+
+    }
+    SUBCASE("Error: Duplicate labels") {
+        const std::vector<std::string> input = {
+            "label3:",
+            "label3: addi x5, x5, 87",
+            "label2: addi x5, x5, 87",
+            "halt"
+        };
+
+        auto program_or_err = as::parse_program(input);
+        REQUIRE_FALSE(program_or_err.has_value());
+
     }
 }
