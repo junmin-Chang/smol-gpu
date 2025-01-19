@@ -70,7 +70,7 @@ struct Token {
 
     template<typename ...T>
     [[nodiscard]] auto is_of_type() const -> bool {
-        return std::holds_alternative<T...>(token_type);
+        return (std::holds_alternative<T>(token_type) || ...);
     }
 
     template<typename T>

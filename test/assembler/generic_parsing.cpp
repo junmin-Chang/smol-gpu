@@ -196,6 +196,5 @@ TEST_CASE("Labels") {
 
         auto program_or_err = as::parse_program(input);
         REQUIRE_FALSE(program_or_err.has_value());
-
     }
 }

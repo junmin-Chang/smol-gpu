@@ -47,8 +47,19 @@ struct UtypeOperands {
     token::Immediate imm20;
 };
 
+struct JtypeOperands {
+    sim::Register rd;
+    token::Immediate imm20;
+};
+
+struct JalrOperands {
+    sim::Register rd;
+    sim::Register rs1;
+    ImmediateOrLabelref immediate_or_label_ref;
+};
+
 /*using Operands = std::variant<Rtype, Itype, Load, Store, Branch, Jump, Utype, Sx>;*/
-using Operands = std::variant<ItypeOperands, RtypeOperands, StypeOperands, UtypeOperands>;
+using Operands = std::variant<ItypeOperands, RtypeOperands, StypeOperands, UtypeOperands, JtypeOperands, JalrOperands>;
 
 constexpr auto is_itype_arithmetic(sim::MnemonicName name) -> bool {
     return name == sim::MnemonicName::ADDI || name == sim::MnemonicName::SLTI || name == sim::MnemonicName::XORI ||
@@ -112,9 +123,19 @@ struct Instruction {
                   /*    result += operands.rs1.to_str() + ", " + operands.rs2.to_str() + ", " +*/
                   /*              std::to_string(operands.imm12);*/
                   /*},*/
-                  /*[&result](const parser::JtypeOperands &operands) {*/
-                  /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
-                  /*},*/
+                  [&result](const parser::JtypeOperands &operands) {
+                      result += operands.rd.to_str() + ", " + std::to_string(operands.imm20.value);
+                  },
+                  [&result](const parser::JalrOperands &operands) {
+                      result += operands.rd.to_str() + ", ";
+                      if (std::holds_alternative<token::LabelRef>(operands.immediate_or_label_ref)) {
+                          result += std::get<token::LabelRef>(operands.immediate_or_label_ref).label_name;
+                          return;
+                      }
+                      const auto& immediate = std::get<token::Immediate>(operands.immediate_or_label_ref);
+                      result += std::to_string(immediate.value) + "(" + operands.rs1.to_str() + ")";
+                  },
+
                   /*[&result](const parser::UxtypeOperands &operands) {*/
                   /*    result += operands.rd.to_str() + ", " + std::to_string(operands.imm20);*/
                   /*},*/
@@ -178,8 +199,9 @@ class Parser {
     auto parse_load_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
     auto parse_store_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
     auto parse_branch_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
-    auto parse_jump_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
     auto parse_utype_instruction(const sim::Mnemonic &mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_jal_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction>;
+    auto parse_jalr_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction>;
 
     void push_err(Error &&err);
     void push_err(std::string &&message, unsigned column);

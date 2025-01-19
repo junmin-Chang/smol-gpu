@@ -3,8 +3,8 @@
 #include "lexer.hpp"
 #include "token.hpp"
 
-#define EXPECT_OR_RETURN(opt, type) \
-    auto opt = expect<type>();     \
+#define EXPECT_OR_RETURN(opt, ...) \
+    auto opt = expect<__VA_ARGS__>();     \
     if (!opt.has_value()) {        \
         return std::nullopt;       \
     }
@@ -114,6 +114,14 @@ auto Parser::parse_instruction() -> std::optional<Result> {
     // LUI, AUIPC
     if (parser::is_utype(mnemonic.get_name())) {
         return parse_utype_instruction(mnemonic);
+    }
+
+    if (mnemonic.get_name() == sim::MnemonicName::JALR) {
+        return parse_jalr_instruction(mnemonic);
+    }
+
+    if (mnemonic.get_name() == sim::MnemonicName::JAL) {
+        return parse_jal_instruction(mnemonic);
     }
 
     push_err(std::format("Unknown mnemonic: '{}'", mnemonic.to_str()), mnemonic_token.col);
@@ -247,6 +255,58 @@ auto Parser::parse_store_instruction(const sim::Mnemonic& mnemonic) -> std::opti
     };
 
     return instruction;
+}
+
+auto Parser::parse_jal_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction> {
+    EXPECT_OR_RETURN(rd, token::Register);
+    EXPECT_OR_RETURN(comma, token::Comma);
+    EXPECT_OR_RETURN(immediate, token::Immediate);
+
+    return parser::Instruction {
+        .label = {},
+        .mnemonic = mnemonic,
+        .operands = parser::JtypeOperands {
+            .rd = rd->as<token::Register>().register_data,
+            .imm20 = immediate->as<token::Immediate>()
+        }
+    };
+}
+
+// JALR instruction is JALR rd, rs1, offset <=> rd = PC + 1, PC = rs1 + offset
+// Therefore we can use it to jump to labels if rs1 = r0
+// That's why there are two syntaxes:
+// JALR rd, offset(rs1)
+// JALR rd, labelref
+auto Parser::parse_jalr_instruction(const sim::Mnemonic& mnemonic) -> std::optional<parser::Instruction> {
+    EXPECT_OR_RETURN(rd, token::Register);
+    EXPECT_OR_RETURN(comma1, token::Comma);
+    EXPECT_OR_RETURN(next, token::LabelRef, token::Immediate);
+
+    if (next->is_of_type<token::LabelRef>()) {
+        return parser::Instruction {
+            .label = {},
+            .mnemonic = mnemonic,
+            .operands = parser::JalrOperands {
+                .rd = rd->as<token::Register>().register_data,
+                .rs1 = 0_x,
+                .immediate_or_label_ref = next->as<token::LabelRef>()
+            }
+        };
+    }
+
+    EXPECT_OR_RETURN(lparen, token::Lparen);
+    EXPECT_OR_RETURN(rs1, token::Register);
+    EXPECT_OR_RETURN(rparen, token::Rparen);
+
+    return parser::Instruction {
+        .label = {},
+        .mnemonic = mnemonic,
+        .operands = parser::JalrOperands {
+            .rd = rd->as<token::Register>().register_data,
+            .rs1 = rs1->as<token::Register>().register_data,
+            .immediate_or_label_ref = next->as<token::Immediate>()
+        }
+    };
 }
 
 

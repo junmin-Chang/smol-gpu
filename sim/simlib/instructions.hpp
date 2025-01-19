@@ -397,6 +397,7 @@ struct InstructionBits {
     }
 
     constexpr auto set_imm21(IData imm21) -> InstructionBits& {
+        // FIXME: Need to double check whether this is correct
         assert_or_err(imm21 < 2097152, Error(std::format("Invalid immediate: '{}', expected 21-bit.", imm21)));
 
         auto imm_j = std::bitset<32>{};
@@ -447,6 +448,7 @@ constexpr auto create_jtype_instruction(Opcode opcode, Register rd, IData imm21)
     return InstructionBits().set_opcode(opcode).set_rd(rd).set_imm21(imm21);
 }
 constexpr auto create_btype_instruction(Opcode opcode, Funct3 funct3, Register rs1, Register rs2, IData imm12) -> InstructionBits {
+    // TODO: Implement this
     return InstructionBits{};
     /*return Instruction().set_opcode(opcode).set_funct3(funct3).set_rs1(rs1).set_rs2(rs2);*/
 }
