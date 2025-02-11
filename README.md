@@ -1,4 +1,4 @@
-# RISC-V GPU
+# Smol GPU
 The purpose of this project was to create an open-source GPU which can serve as an introduction to modern GPU architecture.
 The project is heavily influenced [tiny-gpu](https://github.com/adam-maj/tiny-gpu).
 It builds upon tiny-gpu by incorporating a more advanced ISA (based on RISC-V RV32I), having multiple warps per each core and supporting branching, among other things.
@@ -142,7 +142,7 @@ Which instruction is being executed is determined by three values:
 - funct7
 
 All of the vector instructions have their scalar equivalent but not vice versa.
-Specifically, the jump and branch instructions are scalar-only (`jal`, `jalr`, `beq`, `bne`, `blt`, `bge`).
+Specifically, the jump and branch instructions are scalar-only, because only the warps have a program counter (`jal`, `jalr`, `beq`, `bne`, `blt`, `bge`).
 
 The most significant bit of the opcode is always equal to 0 for vector instruction and to 1 for other types.
 That means, that changing the instruction type from vector to scalar is equivalent to this operation `(opcode) & (1 << 6)`.
