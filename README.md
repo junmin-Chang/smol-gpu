@@ -56,7 +56,7 @@ Most modern CPUs are designed to be versatile in their function.
 They have to perform both sequential and parallel computations while also running the operating system and handling I/O operations.
 
 In contrast to that, GPUs are designed with a single goal in mind - processing as much data in parallel as possible.
-The currently used paradigm that helps achieve that is called **SIMT (Single Instruction Multiple Data)**, which is described in the next subchapter.
+The currently used paradigm that helps achieve that is called **SIMT (Single Instruction Multiple Thread)**, which is described in the next subchapter.
 
 ### SIMT architecture
 We have two goals when designing a GPU.
