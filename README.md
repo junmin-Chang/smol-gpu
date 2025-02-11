@@ -1,4 +1,38 @@
 # Smol GPU
+[![Educational Project](https://img.shields.io/badge/Type-Educational-blue)]()
+[![RISC-V](https://img.shields.io/badge/ISA-RISC--V-red)]()
+[![License](https://img.shields.io/github/license/grubre/smol-gpu)]()
+[![Stars](https://img.shields.io/github/stars/grubre/smol-gpu)]()
+
+An educational implementation of a parallel processor in system-verilog.
+
+The [Intro to GPU Architecture](#intro-to-gpu-architecture) chapter is a short write-up on the theoretical basics needed to understand the GPU implemented in this repository.An rv32i inspired ISA, SIMT GPU implementation in system-verilog. 
+
+If you want to set up the simulation on your machine, see [Simulation](#simulation) and [Project Structure](#project-structure).
+
+- [Introduction](#introduction)
+- [Intro to GPU Architecture](#intro-to-gpu-architecture)
+  - [Comparison with CPUs](#comparison-with-cpus)
+  - [SIMT Architecture](#simt-architecture)
+  - [Branching](#branching)
+- [ISA](#isa)
+  - [Vector Registers](#vector-registers)
+  - [Scalar Registers](#scalar-registers)
+  - [Instructions](#instructions)
+    - [Instruction List](#instruction-list)
+- [Assembly](#assembly)
+  - [Syntax](#syntax)
+  - [Example](#example)
+- [Microarchitecture](#microarchitecture)
+- [Project Structure](#project-structure)
+- [Simulation](#simulation)
+  - [Justfile](#justfile)
+  - [CMake](#cmake)
+  - [Running the Simulator](#running-the-simulator)
+- [Roadmap](#roadmap)
+
+## Introduction
+
 The purpose of this project was to create an open-source GPU which can serve as an introduction to modern GPU architecture.
 The project is heavily influenced [tiny-gpu](https://github.com/adam-maj/tiny-gpu).
 It builds upon tiny-gpu by incorporating a more advanced ISA (based on RISC-V RV32I), having multiple warps per each core and supporting branching, among other things.
@@ -303,6 +337,15 @@ The program will fail if the assembly code contained in the input file is ill-fo
 
 In case it manages to assemble the code, it will then run the simulation and print the first 100 words of the memory to the console.
 This is a temporary solution and will be replaced by a more sophisticated output mechanism in the future.
+
+## Acknowledgments
+Special thanks go to Adam Majmudar, the creator of [tiny-gpu](https://github.com/adam-maj/tiny-gpu).
+As previously mentioned, this project is heavily inspired by it and built on top of it.
+
+The architecture itself is a modified variant of [RISC-V](https://github.com/riscv) RV32I.
+
+Much of the knowledge I've gathered in order to create this project comes from the General-Purpose Graphics Processor Architecture book(2018) by Tor M. Aamodt, Wilson Wai Lun Fung and Timothy G. Rogers,
+which I highly recommend for anyone interested in the topic.
 
 ## Roadmap
 There is still a lot of work to be done around the GPU itself, the simulator and the tooling around it.
