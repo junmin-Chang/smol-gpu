@@ -6,7 +6,7 @@
 
 An educational implementation of a parallel processor in system-verilog.
 
-The [Intro to GPU Architecture](#intro-to-gpu-architecture) chapter is a short write-up on the theoretical basics needed to understand the GPU implemented in this repository.An rv32i inspired ISA, SIMT GPU implementation in system-verilog. 
+The [Intro to GPU Architecture](#intro-to-gpu-architecture) chapter is a short write-up on the theoretical basics needed to understand the GPU implemented in this repository.
 
 If you want to set up the simulation on your machine, see [Simulation](#simulation) and [Project Structure](#project-structure).
 
@@ -29,6 +29,7 @@ If you want to set up the simulation on your machine, see [Simulation](#simulati
   - [Justfile](#justfile)
   - [CMake](#cmake)
   - [Running the Simulator](#running-the-simulator)
+- [Acknowledgments](#acknowledgments)
 - [Roadmap](#roadmap)
 
 ## Introduction
