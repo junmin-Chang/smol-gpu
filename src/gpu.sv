@@ -180,7 +180,8 @@ end
 
 // Compute Cores
 generate
-    for (genvar i = 0; i < NUM_CORES; i = i + 1) begin : g_cores
+	genvar i;
+    for (i = 0; i < NUM_CORES; i = i + 1) begin : g_cores
         // EDA: We create separate signals here to pass to cores because of a requirement
         // by the OpenLane EDA flow (uses Verilog 2005) that prevents slicing the top-level signals
         logic [NUM_LSUS_PER_CORE-1:0] core_lsu_read_valid;

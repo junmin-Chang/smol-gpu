@@ -40,7 +40,7 @@ localparam int NUM_LSUS = THREADS_PER_WARP + 1;
 int current_warp;
 
 warp_state_t warp_state [WARPS_PER_CORE];
-fetcher_state_t fetcher_state [WARPS_PER_CORE];
+fetcher_state_t fetcher_state_in [WARPS_PER_CORE];
 
 warp_state_t current_warp_state;
 assign current_warp_state = warp_state[current_warp];
@@ -100,7 +100,7 @@ alu warp_alu_inst(
     .rs1(scalar_rs1),
     .rs2(scalar_rs2),
     .imm(decoded_immediate[current_warp]),
-    .instruction(decoded_alu_instruction[current_warp]),
+    .instruction(alu_instruction_t'(decoded_alu_instruction[current_warp])),
 
     .alu_out(scalar_alu_out)
 );
@@ -134,13 +134,16 @@ lsu warp_lsu_inst (
 );
 
 always @(posedge clk) begin
-    if (reset) begin
+	int next_warp;
+	int found_warp;
+	int warp_index;
+	if (reset) begin
         $display("Resetting core %0d", block_id);
         start_execution <= 0;
         done <= 0;
         for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
             warp_state[i] <= WARP_IDLE;
-            fetcher_state[i] <= FETCHER_IDLE;
+            fetcher_state_in[i] <= FETCHER_IDLE;
             pc[i] <= 0;
             next_pc[i] <= 0;
             current_warp <= 0;
@@ -151,24 +154,24 @@ always @(posedge clk) begin
             // Set all warps to fetch state on start
             start_execution <= 1;
             current_warp <= 0;
-            for (int i = 0; i < num_warps; i = i + 1) begin
+            for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
                 warp_state[i] <= WARP_FETCH;
-                fetcher_state[i] <= FETCHER_IDLE;
+                fetcher_state_in[i] <= FETCHER_IDLE;
                 pc[i] <= kernel_config.base_instructions_address;
                 next_pc[i] <= kernel_config.base_instructions_address;
             end
         end
     end else begin
         // In parallel, check if fetchers are done, and if so, move to decode
-        for (int i = 0; i < num_warps; i = i + 1) begin
-            if (warp_state[i] == WARP_FETCH && fetcher_state[i] == FETCHER_DONE) begin
+        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
+            if (warp_state[i] == WARP_FETCH && fetcher_state_in[i] == FETCHER_DONE) begin
                 $display("Block: %0d: Warp %0d: Fetched instruction %h at address %h", block_id, i, fetched_instruction[i], pc[i]);
                 warp_state[i] <= WARP_DECODE;
             end
         end
 
         // If all warps are done, we are done
-        for (int i = 0; i < num_warps; i = i + 1) begin
+        for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
             if (warp_state[i] != WARP_DONE) begin
                 done <= 0;
                 break;
@@ -182,12 +185,13 @@ always @(posedge clk) begin
         // - WARP_DONE - that means that the warp has finished execution
         // - WARP_FETCH - that means that the warp is fetching instructions
         // For now we do not change state unless we are in WARP_UPDATE
+
         if (current_warp_state == WARP_UPDATE || current_warp_state == WARP_DONE) begin
-            int next_warp = (current_warp + 1) % num_warps;
-            int found_warp = -1;
+            next_warp = (current_warp + 1) % WARPS_PER_CORE;
+            found_warp = -1;
             $display("Block: %0d: Choosing next warp", block_id);
             for (int i = 0; i < WARPS_PER_CORE; i = i + 1) begin
-                int warp_index = (next_warp + i) % num_warps;
+                warp_index = (next_warp + i) % WARPS_PER_CORE;
                 if ((warp_state[warp_index] != WARP_IDLE) && (warp_state[warp_index] != WARP_FETCH) && (warp_state[warp_index] != WARP_DONE)) begin
                     found_warp = warp_index;
                     break;
@@ -296,45 +300,46 @@ end
 
 // This block generates warp control circuitry
 generate
-for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
+genvar warp_i;
+for (warp_i = 0; warp_i < WARPS_PER_CORE; warp_i = warp_i + 1) begin : g_warp
     fetcher fetcher_inst(
         .clk(clk),
         .reset(reset),
 
-        .warp_state(warp_state[i]),
-        .pc(pc[i]),
+        .warp_state(warp_state[warp_i]),
+        .pc(pc[warp_i]),
 
         // Instruction Memory
-        .instruction_mem_read_ready(instruction_mem_read_ready[i]),
-        .instruction_mem_read_data(instruction_mem_read_data[i]),
-        .instruction_mem_read_valid(instruction_mem_read_valid[i]),
-        .instruction_mem_read_address(instruction_mem_read_address[i]),
+        .instruction_mem_read_ready(instruction_mem_read_ready[warp_i]),
+        .instruction_mem_read_data(instruction_mem_read_data[warp_i]),
+        .instruction_mem_read_valid(instruction_mem_read_valid[warp_i]),
+        .instruction_mem_read_address(instruction_mem_read_address[warp_i]),
 
         // Fetcher output
-        .fetcher_state(fetcher_state[i]),
-        .instruction(fetched_instruction[i])
+        .fetcher_state_in(fetcher_state_in[warp_i]),
+        .instruction(fetched_instruction[warp_i])
     );
 
     decoder decoder_inst(
         .clk(clk),
         .reset(reset),
-        .warp_state(warp_state[i]),
+        .warp_state(warp_state[warp_i]),
 
-        .instruction(fetched_instruction[i]),
+        .instruction(fetched_instruction[warp_i]),
 
-        .decoded_reg_write_enable(decoded_reg_write_enable[i]),
-        .decoded_mem_write_enable(decoded_mem_write_enable[i]),
-        .decoded_mem_read_enable(decoded_mem_read_enable[i]),
-        .decoded_branch(decoded_branch[i]),
-        .decoded_scalar_instruction(decoded_scalar_instruction[i]),
-        .decoded_reg_input_mux(decoded_reg_input_mux[i]),
-        .decoded_immediate(decoded_immediate[i]),
-        .decoded_rd_address(decoded_rd_address[i]),
-        .decoded_rs1_address(decoded_rs1_address[i]),
-        .decoded_rs2_address(decoded_rs2_address[i]),
-        .decoded_alu_instruction(decoded_alu_instruction[i]),
+        .decoded_reg_write_enable(decoded_reg_write_enable[warp_i]),
+        .decoded_mem_write_enable(decoded_mem_write_enable[warp_i]),
+        .decoded_mem_read_enable(decoded_mem_read_enable[warp_i]),
+        .decoded_branch(decoded_branch[warp_i]),
+        .decoded_scalar_instruction(decoded_scalar_instruction[warp_i]),
+        .decoded_reg_input_mux(decoded_reg_input_mux[warp_i]),
+        .decoded_immediate(decoded_immediate[warp_i]),
+        .decoded_rd_address(decoded_rd_address[warp_i]),
+        .decoded_rs1_address(decoded_rs1_address[warp_i]),
+        .decoded_rs2_address(decoded_rs2_address[warp_i]),
+        .decoded_alu_instruction(decoded_alu_instruction[warp_i]),
 
-        .decoded_halt(decoded_halt[i])
+        .decoded_halt(decoded_halt[warp_i])
     );
 
     scalar_reg_file #(
@@ -342,23 +347,23 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
     ) scalar_reg_file_inst (
         .clk(clk),
         .reset(reset),
-        .enable((current_warp == i)), // Enable when current_warp matches and warp is active
+        .enable((current_warp == warp_i)), // Enable when current_warp matches and warp is active
 
-        .warp_execution_mask(warp_execution_mask[i]),
+        .warp_execution_mask(warp_execution_mask[warp_i]),
 
-        .warp_state(warp_state[i]),
+        .warp_state(warp_state[warp_i]),
 
-        .decoded_reg_write_enable(decoded_reg_write_enable[i] & (decoded_scalar_instruction[i] | decoded_reg_input_mux[current_warp] == VECTOR_TO_SCALAR)),
-        .decoded_reg_input_mux(decoded_reg_input_mux[i]),
-        .decoded_immediate(decoded_immediate[i]),
-        .decoded_rd_address(decoded_rd_address[i]),
-        .decoded_rs1_address(decoded_rs1_address[i]),
-        .decoded_rs2_address(decoded_rs2_address[i]),
+        .decoded_reg_write_enable(decoded_reg_write_enable[warp_i] & (decoded_scalar_instruction[warp_i] | decoded_reg_input_mux[current_warp] == VECTOR_TO_SCALAR)),
+        .decoded_reg_input_mux(decoded_reg_input_mux[warp_i]),
+        .decoded_immediate(decoded_immediate[warp_i]),
+        .decoded_rd_address(decoded_rd_address[warp_i]),
+        .decoded_rs1_address(decoded_rs1_address[warp_i]),
+        .decoded_rs2_address(decoded_rs2_address[warp_i]),
 
         .alu_out(scalar_alu_out),
         .lsu_out(scalar_lsu_out),
-        .pc(pc[i]),
-        .vector_to_scalar_data(vector_to_scalar_data[i]),
+        .pc(pc[warp_i]),
+        .vector_to_scalar_data(vector_to_scalar_data[warp_i]),
 
         .rs1(scalar_rs1),
         .rs2(scalar_rs2)
@@ -369,24 +374,24 @@ for (genvar i = 0; i < WARPS_PER_CORE; i = i + 1) begin : g_warp
         ) reg_file_inst (
             .clk(clk),
             .reset(reset),
-            .enable((current_warp == i)), // Enable when current_warp matches and warp is active
+            .enable((current_warp == warp_i)), // Enable when current_warp matches and warp is active
 
             // Thread enable signals (execution mask)
-            .thread_enable(warp_execution_mask[i]),
+            .thread_enable(warp_execution_mask[warp_i]),
 
             // Warp and block identifiers
-            .warp_id(i),
+            .warp_id(warp_i),
             .block_id(block_id),
             .block_size(kernel_config.num_warps_per_block * THREADS_PER_WARP),
-            .warp_state(warp_state[i]),
+            .warp_state(warp_state[warp_i]),
 
             // Decoded instruction fields for this warp
-            .decoded_reg_write_enable(decoded_reg_write_enable[i] & !decoded_scalar_instruction[i]),
-            .decoded_reg_input_mux(decoded_reg_input_mux[i]),
-            .decoded_immediate(decoded_immediate[i]),
-            .decoded_rd_address(decoded_rd_address[i]),
-            .decoded_rs1_address(decoded_rs1_address[i]),
-            .decoded_rs2_address(decoded_rs2_address[i]),
+            .decoded_reg_write_enable(decoded_reg_write_enable[warp_i] & !decoded_scalar_instruction[warp_i]),
+            .decoded_reg_input_mux(decoded_reg_input_mux[warp_i]),
+            .decoded_immediate(decoded_immediate[warp_i]),
+            .decoded_rd_address(decoded_rd_address[warp_i]),
+            .decoded_rs1_address(decoded_rs1_address[warp_i]),
+            .decoded_rs2_address(decoded_rs2_address[warp_i]),
 
             // Inputs from ALU and LSU per thread
             .alu_out(alu_out), // ALU outputs for all threads
@@ -402,20 +407,21 @@ endgenerate
 
 // This block generates shared core resources
 generate
-    for (genvar i = 0; i < THREADS_PER_WARP; i = i + 1) begin : g_alus
-        wire t_enable = current_warp_execution_mask[i] & !decoded_scalar_instruction[current_warp];
+	 genvar thread_i;
+    for (thread_i = 0; thread_i < THREADS_PER_WARP; thread_i = thread_i + 1) begin : g_alus
+        wire t_enable = current_warp_execution_mask[thread_i] & !decoded_scalar_instruction[current_warp];
         alu alu_inst(
             .clk(clk),
             .reset(reset),
             .enable(t_enable),
 
             .pc(pc[current_warp]),
-            .rs1(rs1[i]),
-            .rs2(rs2[i]),
+            .rs1(rs1[thread_i]),
+            .rs2(rs2[thread_i]),
             .imm(decoded_immediate[current_warp]),
-            .instruction(decoded_alu_instruction[current_warp]),
+            .instruction(alu_instruction_t'(decoded_alu_instruction[current_warp])),
 
-            .alu_out(alu_out[i])
+            .alu_out(alu_out[thread_i])
         );
 
         lsu lsu_inst(
@@ -428,22 +434,22 @@ generate
             .decoded_mem_read_enable(decoded_mem_read_enable[current_warp]),
             .decoded_mem_write_enable(decoded_mem_write_enable[current_warp]),
 
-            .rs1(rs1[i]),
-            .rs2(rs2[i]),
+            .rs1(rs1[thread_i]),
+            .rs2(rs2[thread_i]),
             .imm(decoded_immediate[current_warp]),
 
             // Data Memory connections
-            .mem_read_valid(data_mem_read_valid[i]),
-            .mem_read_address(data_mem_read_address[i]),
-            .mem_read_ready(data_mem_read_ready[i]),
-            .mem_read_data(data_mem_read_data[i]),
-            .mem_write_valid(data_mem_write_valid[i]),
-            .mem_write_address(data_mem_write_address[i]),
-            .mem_write_data(data_mem_write_data[i]),
-            .mem_write_ready(data_mem_write_ready[i]),
+            .mem_read_valid(data_mem_read_valid[thread_i]),
+            .mem_read_address(data_mem_read_address[thread_i]),
+            .mem_read_ready(data_mem_read_ready[thread_i]),
+            .mem_read_data(data_mem_read_data[thread_i]),
+            .mem_write_valid(data_mem_write_valid[thread_i]),
+            .mem_write_address(data_mem_write_address[thread_i]),
+            .mem_write_data(data_mem_write_data[thread_i]),
+            .mem_write_ready(data_mem_write_ready[thread_i]),
 
-            .lsu_state(lsu_state[i]),
-            .lsu_out(lsu_out[i])
+            .lsu_state(lsu_state[thread_i]),
+            .lsu_out(lsu_out[thread_i])
         );
     end
 endgenerate

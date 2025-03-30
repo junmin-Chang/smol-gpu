@@ -23,7 +23,11 @@ module dispatcher #(
     output reg done
 );
 
-data_t total_blocks = kernel_config.num_blocks;
+data_t total_blocks;
+
+always_comb begin
+    total_blocks = kernel_config.num_blocks;
+end
 
 data_t blocks_done;
 data_t blocks_dispatched; // How many blocks have been sent to cores?

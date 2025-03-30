@@ -15,37 +15,39 @@ module fetcher (
     input instruction_t instruction_mem_read_data,
     output logic instruction_mem_read_valid,
     output instruction_memory_address_t instruction_mem_read_address,
-
+	
+	 // Fetcher input
+	input fetcher_state_t fetcher_state_in,
     // Fetcher output
-    output fetcher_state_t fetcher_state,
+    output fetcher_state_t fetcher_state_out,
     output instruction_t instruction
 );
 
 always @(posedge clk) begin
     if (reset) begin
-        fetcher_state <= FETCHER_IDLE;
+        fetcher_state_out <= FETCHER_IDLE;
         instruction_mem_read_valid <= 0;
         instruction_mem_read_address <= 0;
         instruction <= {`INSTRUCTION_WIDTH{1'b0}};
     end else begin
-        case (fetcher_state)
+        case (fetcher_state_in)
             FETCHER_IDLE: begin
                 if (warp_state == WARP_FETCH) begin
-                    fetcher_state <= FETCHER_FETCHING;
+                    fetcher_state_out <= FETCHER_FETCHING;
                     instruction_mem_read_valid <= 1;
                     instruction_mem_read_address <= pc;
                 end
             end
             FETCHER_FETCHING: begin
                 if (instruction_mem_read_ready) begin
-                    fetcher_state <= FETCHER_DONE;
+                    fetcher_state_out <= FETCHER_DONE;
                     instruction_mem_read_valid <= 0;
                     instruction <= instruction_mem_read_data;
                 end
             end
             FETCHER_DONE: begin
                 if (warp_state == WARP_DECODE) begin
-                    fetcher_state <= FETCHER_IDLE;
+                    fetcher_state_out <= FETCHER_IDLE;
                 end
             end
             default: begin

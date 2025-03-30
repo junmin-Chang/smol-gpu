@@ -1,6 +1,6 @@
 `default_nettype none
 `timescale 1ns/1ns
-
+`include "common.sv"
 module reg_file #(
     parameter int THREADS_PER_WARP = 32,
     parameter int DATA_WIDTH = `DATA_WIDTH
