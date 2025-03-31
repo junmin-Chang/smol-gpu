@@ -45,8 +45,8 @@ fetcher_state_t fetcher_state_in [WARPS_PER_CORE];
 warp_state_t current_warp_state;
 assign current_warp_state = warp_state[current_warp];
 
-data_t rs1 [THREADS_PER_WARP];
-data_t rs2 [THREADS_PER_WARP];
+data_t rs1 [WARPS_PER_CORE][THREADS_PER_WARP];
+data_t rs2 [WARPS_PER_CORE][THREADS_PER_WARP];
 
 instruction_t fetched_instruction [WARPS_PER_CORE];
 
@@ -75,8 +75,8 @@ logic decoded_halt [WARPS_PER_CORE];
 warp_mask_t warp_execution_mask [WARPS_PER_CORE];
 warp_mask_t current_warp_execution_mask;
 assign current_warp_execution_mask = warp_execution_mask[current_warp];
-data_t scalar_rs1;
-data_t scalar_rs2;
+data_t scalar_rs1 [WARPS_PER_CORE];
+data_t scalar_rs2 [WARPS_PER_CORE];
 data_t scalar_lsu_out;
 data_t scalar_alu_out;
 lsu_state_t scalar_lsu_state;
@@ -97,8 +97,8 @@ alu warp_alu_inst(
     .enable(decoded_scalar_instruction[current_warp]),
 
     .pc(pc[current_warp]),
-    .rs1(scalar_rs1),
-    .rs2(scalar_rs2),
+    .rs1(scalar_rs1[current_warp]),
+    .rs2(scalar_rs2[current_warp]),
     .imm(decoded_immediate[current_warp]),
     .instruction(alu_instruction_t'(decoded_alu_instruction[current_warp])),
 
@@ -115,8 +115,8 @@ lsu warp_lsu_inst (
     .decoded_mem_read_enable(decoded_mem_read_enable[current_warp]),
     .decoded_mem_write_enable(decoded_mem_write_enable[current_warp]),
 
-    .rs1(scalar_rs1),
-    .rs2(scalar_rs2),
+    .rs1(scalar_rs1[current_warp]),
+    .rs2(scalar_rs2[current_warp]),
     .imm(decoded_immediate[current_warp]),
 
     // Data Memory connections
@@ -365,8 +365,8 @@ for (warp_i = 0; warp_i < WARPS_PER_CORE; warp_i = warp_i + 1) begin : g_warp
         .pc(pc[warp_i]),
         .vector_to_scalar_data(vector_to_scalar_data[warp_i]),
 
-        .rs1(scalar_rs1),
-        .rs2(scalar_rs2)
+        .rs1(scalar_rs1[warp_i]),
+        .rs2(scalar_rs2[warp_i])
     );
 
     reg_file #(
@@ -398,8 +398,8 @@ for (warp_i = 0; warp_i < WARPS_PER_CORE; warp_i = warp_i + 1) begin : g_warp
             .lsu_out(lsu_out),
 
             // Outputs per thread
-            .rs1(rs1),
-            .rs2(rs2)
+            .rs1(rs1[warp_i]),
+            .rs2(rs2[warp_i])
         );
 end
 endgenerate
@@ -416,8 +416,8 @@ generate
             .enable(t_enable),
 
             .pc(pc[current_warp]),
-            .rs1(rs1[thread_i]),
-            .rs2(rs2[thread_i]),
+            .rs1(rs1[current_warp][thread_i]),
+            .rs2(rs2[current_warp][thread_i]),
             .imm(decoded_immediate[current_warp]),
             .instruction(alu_instruction_t'(decoded_alu_instruction[current_warp])),
 
@@ -434,8 +434,8 @@ generate
             .decoded_mem_read_enable(decoded_mem_read_enable[current_warp]),
             .decoded_mem_write_enable(decoded_mem_write_enable[current_warp]),
 
-            .rs1(rs1[thread_i]),
-            .rs2(rs2[thread_i]),
+            .rs1(rs1[current_warp][thread_i]),
+            .rs2(rs2[current_warp][thread_i]),
             .imm(decoded_immediate[current_warp]),
 
             // Data Memory connections
