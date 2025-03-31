@@ -4,7 +4,7 @@
 `include "common.sv"
 
 module compute_core#(
-    parameter int WARPS_PER_CORE = 4,            // Number of warps to in each core
+    parameter int WARPS_PER_CORE = 2,            // Number of warps to in each core
     parameter int THREADS_PER_WARP = 32          // Number of threads per warp (max 32)
     )(
     input wire clk,
@@ -407,7 +407,7 @@ endgenerate
 
 // This block generates shared core resources
 generate
-	 genvar thread_i;
+	genvar thread_i;
     for (thread_i = 0; thread_i < THREADS_PER_WARP; thread_i = thread_i + 1) begin : g_alus
         wire t_enable = current_warp_execution_mask[thread_i] & !decoded_scalar_instruction[current_warp];
         alu alu_inst(
